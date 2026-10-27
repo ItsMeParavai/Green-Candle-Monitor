@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "PnL Tracker",
+    "slug": "pnl-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "backgroundColor": "#0B0D10",
+    "android": {
+      "package": "com.example.pnltracker",
+      "versionCode": 1,
+      "softwareKeyboardLayoutMode": "resize"
+    }
+  }
+}
