@@ -19,7 +19,29 @@ import AccountModal from './src/components/AccountModal';
 import YearView from './src/components/YearView';
 import AllTimeView from './src/components/AllTimeView';
 
-export default function App() {
+// Error Boundary Guard to catch any runtime errors gracefully
+class ErrorBoundary extends React.Component {
+  state = { hasError: false, error: null };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("App Runtime Error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#0A0E12', justifyContent: 'center', padding: 20 }}>
+          <Text style={{ color: '#F44336', fontSize: 20, fontWeight: '700', marginBottom: 10 }}>App Runtime Error</Text>
+          <Text style={{ color: '#FFF', fontSize: 14 }}>{this.state.error?.toString()}</Text>
+        </SafeAreaView>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function MainApp() {
   const [activeTab, setActiveTab] = useState('Month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -38,13 +60,17 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      const data = await loadAppData();
-      if (data) {
-        setEntries(data.entries);
-        setGoal(data.goal);
-        setAccounts(data.accounts);
-        setSelectedAccount(data.selectedAccount);
-        setIsDarkMode(data.isDarkMode);
+      try {
+        const data = await loadAppData();
+        if (data) {
+          if (data.entries) setEntries(data.entries);
+          if (data.goal) setGoal(data.goal);
+          if (data.accounts) setAccounts(data.accounts);
+          if (data.selectedAccount) setSelectedAccount(data.selectedAccount);
+          if (data.isDarkMode !== undefined) setIsDarkMode(data.isDarkMode);
+        }
+      } catch (e) {
+        console.error("Storage loading error:", e);
       }
     })();
   }, []);
@@ -78,7 +104,6 @@ export default function App() {
     setSelectedDateKey(null);
   };
 
-  // Export Data to Excel (.csv)
   const handleExportToExcel = async () => {
     try {
       const keys = Object.keys(entries).sort();
@@ -90,9 +115,9 @@ export default function App() {
       let csvContent = 'Date,Account,Type,Amount (INR)\n';
       keys.forEach((dateKey) => {
         const item = entries[dateKey];
-        const amt = parseFloat(item.amount || 0);
+        const amt = parseFloat(item?.amount || 0);
         const type = amt >= 0 ? 'Profit' : 'Loss';
-        const accountName = item.account || 'Main Account';
+        const accountName = item?.account || 'Main Account';
         csvContent += `"${dateKey}","${accountName}","${type}",${amt}\n`;
       });
 
@@ -114,7 +139,6 @@ export default function App() {
     }
   };
 
-  // Import Data from CSV/Excel file
   const handleImportFromExcel = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -306,6 +330,14 @@ export default function App() {
         theme={theme}
       />
     </SafeAreaView>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <MainApp />
+    </ErrorBoundary>
   );
 }
 
