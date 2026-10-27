@@ -25,10 +25,21 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install dependencies & Babel preset
+        run: |
+          npm install
+          npm install babel-preset-expo --save-dev
 
-      - name: Generate Android project
+      - name: Ensure index.js entrypoint exists
+        run: |
+          node -e "
+          const fs = require('fs');
+          if (!fs.existsSync('index.js')) {
+            fs.writeFileSync('index.js', \"import { registerRootComponent } from 'expo';\nimport App from './App';\nregisterRootComponent(App);\n\");
+          }
+          "
+
+      - name: Generate Android native project
         run: npx expo prebuild --platform android --clean
 
       - name: Configure Debug Signing for Release Build
@@ -44,7 +55,7 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
 
-      - name: Build Standalone Offline Release APK
+      - name: Build Standalone Offline APK
         run: |
           cd android
           ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a -x lint --no-daemon
