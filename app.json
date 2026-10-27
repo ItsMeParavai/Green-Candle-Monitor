@@ -4,13 +4,18 @@
     "slug": "pnl-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
-    "backgroundColor": "#0B0D10",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0E12"
+    },
     "android": {
-      "package": "com.example.pnltracker",
-      "versionCode": 1,
-      "softwareKeyboardLayoutMode": "resize"
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0A0E12"
+      },
+      "package": "com.pnltracker.app"
     }
   }
 }
