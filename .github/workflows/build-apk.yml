@@ -25,30 +25,27 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install dependencies & Babel preset
+      - name: Install dependencies & Expo bundler plugins
         run: |
           npm install
-          npm install babel-preset-expo --save-dev
-
-      - name: Ensure index.js entrypoint exists
-        run: |
-          node -e "
-          const fs = require('fs');
-          if (!fs.existsSync('index.js')) {
-            fs.writeFileSync('index.js', \"import { registerRootComponent } from 'expo';\nimport App from './App';\nregisterRootComponent(App);\n\");
-          }
-          "
+          npm install --save-dev babel-preset-expo @expo/metro-config
 
       - name: Generate Android native project
         run: npx expo prebuild --platform android --clean
 
-      - name: Configure Debug Signing for Release Build
+      - name: Enable Offline JS Bundling in Debug Build
         run: |
           node -e "
           const fs = require('fs');
           const path = 'android/app/build.gradle';
           let content = fs.readFileSync(path, 'utf8');
-          content = content.replace('buildTypes {', 'buildTypes {\n        release {\n            signingConfig signingConfigs.debug\n        }');
+          if (content.includes('react {')) {
+            content = content.replace('react {', 'react {\n    bundleInDebug = true');
+          } else if (content.includes('project.ext.react = [')) {
+            content = content.replace('project.ext.react = [', 'project.ext.react = [\n    bundleInDebug: true,');
+          } else {
+            content += '\nproject.ext.react = [ bundleInDebug: true ]\n';
+          }
           fs.writeFileSync(path, content);
           "
 
@@ -58,10 +55,10 @@ jobs:
       - name: Build Standalone Offline APK
         run: |
           cd android
-          ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a -x lint --no-daemon
+          ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a -x lint --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: pnl-tracker-offline-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
