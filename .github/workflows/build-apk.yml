@@ -2,46 +2,48 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: '20'
 
-      - name: Set up Java 17
+      - name: Install dependencies
+        run: npm install
+
+      - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 17
+          distribution: 'temurin'
+          java-version: '17'
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Install JS dependencies
-        run: npm install --no-audit --no-fund
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android
 
-      - name: Generate native Android project (Expo prebuild)
-        run: npx expo prebuild --platform android --no-install
+      - name: Grant execute permission for gradlew
+        run: chmod +x android/gradlew
 
-      - name: Build release APK
-        working-directory: android
-        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+      - name: Build Debug APK
+        run: |
+          cd android
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pnl-tracker-apk
-          path: android/app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
+          name: pnl-tracker-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
