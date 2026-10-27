@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, ScrollView, Ale
 import { StatusBar } from 'expo-status-bar';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
 
 import { darkTheme, lightTheme } from './src/theme';
 import { loadAppData, saveEntries, saveGoal, saveSelectedAccount, saveThemeMode } from './src/storage';
@@ -113,6 +114,69 @@ export default function App() {
     }
   };
 
+  // Import Data from CSV/Excel file
+  const handleImportFromExcel = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['text/csv', 'text/comma-separated-values', 'application/csv', '*/*'],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const fileUri = result.assets[0].uri;
+      const content = await FileSystem.readAsStringAsync(fileUri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      const lines = content.split(/\r?\n/);
+      if (lines.length < 2) {
+        Alert.alert('Import Error', 'The selected file is empty or invalid.');
+        return;
+      }
+
+      let importedCount = 0;
+      const updatedEntries = { ...entries };
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const parts = line.split(',').map((item) => item.replace(/^"|"$/g, '').trim());
+
+        if (parts.length >= 4) {
+          const [dateKey, accountName, type, amountStr] = parts;
+
+          if (/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+            let numericVal = parseFloat(amountStr);
+            if (!isNaN(numericVal)) {
+              if (type && type.toLowerCase() === 'loss' && numericVal > 0) {
+                numericVal = -numericVal;
+              }
+              updatedEntries[dateKey] = {
+                amount: numericVal,
+                account: accountName || selectedAccount,
+              };
+              importedCount++;
+            }
+          }
+        }
+      }
+
+      if (importedCount > 0) {
+        setEntries(updatedEntries);
+        await saveEntries(updatedEntries);
+        Alert.alert('Success', `Successfully imported ${importedCount} P&L records!`);
+      } else {
+        Alert.alert('Import Failed', 'No valid P&L records found in the file.');
+      }
+    } catch (error) {
+      Alert.alert('Import Error', error.message);
+    }
+  };
+
   const totalPnL = calculateMonthlyPnL(entries, year, monthIndex, selectedAccount, hideWeekends);
 
   return (
@@ -143,7 +207,7 @@ export default function App() {
           theme={theme}
         />
 
-        {/* Filters & Export Action */}
+        {/* Filters & Actions */}
         <View style={styles.filterRow}>
           <TouchableOpacity onPress={() => setHideWeekends(!hideWeekends)}>
             <Text style={[styles.filterText, { color: theme.textSecondary }]}>
@@ -157,9 +221,14 @@ export default function App() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={handleExportToExcel} style={[styles.exportBtn, { backgroundColor: theme.cardBg }]}>
-            <Text style={{ color: theme.accent, fontSize: 12, fontWeight: '700' }}>📊 Excel</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <TouchableOpacity onPress={handleImportFromExcel} style={[styles.exportBtn, { backgroundColor: theme.cardBg }]}>
+              <Text style={{ color: theme.accent, fontSize: 12, fontWeight: '700' }}>📥 Import</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleExportToExcel} style={[styles.exportBtn, { backgroundColor: theme.cardBg }]}>
+              <Text style={{ color: theme.accent, fontSize: 12, fontWeight: '700' }}>📊 Excel</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Dynamic Main View */}
@@ -261,7 +330,7 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
-    justify.content: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     marginBottom: 12,
@@ -271,7 +340,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   exportBtn: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 8,
   },
