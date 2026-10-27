@@ -1,61 +1,121 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { toKey, WEEKDAYS } from '../dateUtils';
-import { fmt } from '../calc';
+import { getDaysInMonth, getFirstDayOfMonth, formatDateKey } from '../dateUtils';
 
-export default function CalendarGrid({ weeks, cols, entries, theme, todayKey, onPressDay }) {
+export default function CalendarGrid({ year, monthIndex, entries, hideWeekends, onSelectDate, theme }) {
+  const daysInMonth = getDaysInMonth(year, monthIndex);
+  const firstDay = getFirstDayOfMonth(year, monthIndex);
+
+  const weekHeaders = hideWeekends
+    ? ['MON', 'TUE', 'WED', 'THU', 'FRI']
+    : ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
+  const gridCells = [];
+  for (let i = 0; i < firstDay; i++) {
+    const dayOfWeek = i;
+    if (hideWeekends && (dayOfWeek === 5 || dayOfWeek === 6)) continue;
+    gridCells.push(null);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateObj = new Date(year, monthIndex, day);
+    let dayOfWeek = dateObj.getDay();
+    dayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+
+    if (hideWeekends && (dayOfWeek === 5 || dayOfWeek === 6)) continue;
+
+    gridCells.push(day);
+  }
+
+  const columns = hideWeekends ? 5 : 7;
+
   return (
-    <View>
-      <View style={styles.weekdayRow}>
-        {WEEKDAYS.slice(0, cols).map((w) => (
-          <Text key={w} style={[styles.weekday, { color: theme.subText }]}>{w}</Text>
+    <View style={styles.container}>
+      <View style={styles.headerRow}>
+        {weekHeaders.map((header) => (
+          <Text key={header} style={[styles.headerText, { color: theme.textSecondary, width: `${100 / columns}%` }]}>
+            {header}
+          </Text>
         ))}
       </View>
-      {weeks.map((row, ri) => (
-        <View key={ri} style={styles.row}>
-          {row.map((day, ci) => {
-            if (!day) return <View key={ci} style={styles.cellWrap} />;
-            const key = toKey(day);
-            const entry = entries[key];
-            let bg = theme.emptyBg;
-            let color = theme.emptyText;
-            let label = '—';
-            if (entry) {
-              label = fmt(entry.pnl);
-              if (entry.pnl > 0) { bg = theme.posBg; color = theme.posText; }
-              else if (entry.pnl < 0) { bg = theme.negBg; color = theme.negText; }
-              else { color = theme.text; }
+
+      <View style={styles.gridContainer}>
+        {gridCells.map((day, index) => {
+          if (!day) {
+            return <View key={`empty-${index}`} style={[styles.card, { width: `${100 / columns - 2}%` }]} />;
+          }
+
+          const dateKey = formatDateKey(year, monthIndex, day);
+          const entry = entries[dateKey];
+          const amount = entry ? parseFloat(entry.amount) : null;
+
+          let cardBg = theme.cardBg;
+          let textColor = theme.textSecondary;
+
+          if (amount !== null && !isNaN(amount)) {
+            if (amount > 0) {
+              cardBg = theme.profitBg;
+              textColor = theme.profitText;
+            } else if (amount < 0) {
+              cardBg = theme.lossBg;
+              textColor = theme.lossText;
             }
-            const isToday = key === todayKey;
-            return (
-              <View key={ci} style={styles.cellWrap}>
-                <TouchableOpacity
-                  activeOpacity={0.75}
-                  onPress={() => onPressDay(key)}
-                  style={[styles.cell, { backgroundColor: bg }, isToday && { borderWidth: 2, borderColor: theme.todayBorder }]}
-                >
-                  <Text style={[styles.day, { color }]}>{day.getDate()}</Text>
-                  <Text style={[styles.amount, { color }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-                    {label}
-                  </Text>
-                  {entry && entry.note ? <View style={[styles.noteDot, { backgroundColor: color }]} /> : null}
-                </TouchableOpacity>
-              </View>
-            );
-          })}
-        </View>
-      ))}
+          }
+
+          return (
+            <TouchableOpacity
+              key={dateKey}
+              style={[styles.card, { backgroundColor: cardBg, width: `${100 / columns - 2}%` }]}
+              onPress={() => onSelectDate(dateKey)}
+            >
+              <Text style={[styles.dayText, { color: theme.textPrimary }]}>{day}</Text>
+              <Text style={[styles.amountText, { color: textColor }]}>
+                {amount === null
+                  ? '—'
+                  : amount > 0
+                  ? `+₹${amount.toFixed(2)}`
+                  : `-₹${Math.abs(amount).toFixed(2)}`}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  weekdayRow: { flexDirection: 'row', marginBottom: 6 },
-  weekday: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600' },
-  row: { flexDirection: 'row' },
-  cellWrap: { flex: 1, padding: 3, aspectRatio: 0.85 },
-  cell: { flex: 1, borderRadius: 12, padding: 6, justifyContent: 'space-between' },
-  day: { fontSize: 11, fontWeight: '600', opacity: 0.8 },
-  amount: { fontSize: 14, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
-  noteDot: { position: 'absolute', top: 7, right: 7, width: 5, height: 5, borderRadius: 3, opacity: 0.8 },
+  container: {
+    marginHorizontal: 12,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  headerText: {
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  card: {
+    height: 60,
+    borderRadius: 10,
+    padding: 6,
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  dayText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  amountText: {
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
 });
