@@ -1,256 +1,283 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, StatusBar as RNStatusBar,
-} from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, ScrollView, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
-import { themes } from './src/theme';
-import { defaultState, loadState, saveState } from './src/storage';
-import {
-  MONTHS, addDays, addMonths, formatRange, monthWeeks, weekRow, startOfMonth, endOfMonth,
-  startOfWeek, toKey,
-} from './src/dateUtils';
-import { sumRange, stats as calcStats, monthTotals } from './src/calc';
+import { darkTheme, lightTheme } from './src/theme';
+import { loadAppData, saveEntries, saveGoal, saveSelectedAccount, saveThemeMode } from './src/storage';
+import { MONTH_NAMES } from './src/dateUtils';
+import { calculateMonthlyPnL } from './src/calc';
 
 import ViewTabs from './src/components/ViewTabs';
 import SummaryRow from './src/components/SummaryRow';
 import CalendarGrid from './src/components/CalendarGrid';
-import YearView from './src/components/YearView';
-import AllTimeView from './src/components/AllTimeView';
 import EntryModal from './src/components/EntryModal';
 import GoalModal from './src/components/GoalModal';
 import AccountModal from './src/components/AccountModal';
+import YearView from './src/components/YearView';
+import AllTimeView from './src/components/AllTimeView';
 
 export default function App() {
-  const [state, setState] = useState(defaultState);
-  const [loaded, setLoaded] = useState(false);
-  const [view, setView] = useState('Month');
-  const [anchor, setAnchor] = useState(new Date());
-  const [editKey, setEditKey] = useState(null);
-  const [goalOpen, setGoalOpen] = useState(false);
-  const [accountOpen, setAccountOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('Month');
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [hideWeekends, setHideWeekends] = useState(false);
+
+  const [entries, setEntries] = useState({});
+  const [goal, setGoal] = useState(100);
+  const [accounts, setAccounts] = useState(['Main Account', 'Trading']);
+  const [selectedAccount, setSelectedAccount] = useState('Main Account');
+
+  const [selectedDateKey, setSelectedDateKey] = useState(null);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+
+  const theme = isDarkMode ? darkTheme : lightTheme;
 
   useEffect(() => {
-    loadState().then((s) => {
-      setState(s);
-      setLoaded(true);
-    });
+    (async () => {
+      const data = await loadAppData();
+      if (data) {
+        setEntries(data.entries);
+        setGoal(data.goal);
+        setAccounts(data.accounts);
+        setSelectedAccount(data.selectedAccount);
+        setIsDarkMode(data.isDarkMode);
+      }
+    })();
   }, []);
 
-  useEffect(() => {
-    if (loaded) saveState(state);
-  }, [state, loaded]);
+  const year = currentDate.getFullYear();
+  const monthIndex = currentDate.getMonth();
 
-  const theme = themes[state.theme] || themes.dark;
-  const acc = state.activeAccount;
-  const accountName = (state.accounts.find((a) => a.id === acc) || state.accounts[0]).name;
-  const entries = state.entries[acc] || {};
-  const goal = state.goals[acc] || 0;
-  const cols = state.weekends ? 7 : 5;
-  const todayKey = toKey(new Date());
+  const handlePrevMonth = () => {
+    setCurrentDate(new Date(year, monthIndex - 1, 1));
+  };
 
-  const update = (patch) => setState((s) => ({ ...s, ...patch }));
+  const handleNextMonth = () => {
+    setCurrentDate(new Date(year, monthIndex + 1, 1));
+  };
 
-  // ---- period math ----
-  const period = useMemo(() => {
-    if (view === 'Week') {
-      const s = startOfWeek(anchor);
-      const e = addDays(s, 6);
-      return { start: toKey(s), end: toKey(e), label: formatRange(s, e), title: formatRange(s, e) };
+  const handleSaveEntry = (dateKey, amount) => {
+    const updated = {
+      ...entries,
+      [dateKey]: { amount, account: selectedAccount }
+    };
+    setEntries(updated);
+    saveEntries(updated);
+    setSelectedDateKey(null);
+  };
+
+  const handleDeleteEntry = (dateKey) => {
+    const updated = { ...entries };
+    delete updated[dateKey];
+    setEntries(updated);
+    saveEntries(updated);
+    setSelectedDateKey(null);
+  };
+
+  // Export Data to Excel (.csv)
+  const handleExportToExcel = async () => {
+    try {
+      const keys = Object.keys(entries).sort();
+      if (keys.length === 0) {
+        Alert.alert('No Data', 'You have not added any P&L entries yet.');
+        return;
+      }
+
+      let csvContent = 'Date,Account,Type,Amount (INR)\n';
+      keys.forEach((dateKey) => {
+        const item = entries[dateKey];
+        const amt = parseFloat(item.amount || 0);
+        const type = amt >= 0 ? 'Profit' : 'Loss';
+        const accountName = item.account || 'Main Account';
+        csvContent += `"${dateKey}","${accountName}","${type}",${amt}\n`;
+      });
+
+      const fileUri = `${FileSystem.documentDirectory}pnl_report.csv`;
+      await FileSystem.writeAsStringAsync(fileUri, csvContent, {
+        encoding: FileSystem.EncodingType.UTF8
+      });
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Export P&L Report to Excel'
+        });
+      } else {
+        Alert.alert('Error', 'Sharing is not available on this device.');
+      }
+    } catch (error) {
+      Alert.alert('Export Failed', error.message);
     }
-    if (view === 'Month') {
-      const s = startOfMonth(anchor);
-      const e = endOfMonth(anchor);
-      const t = `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`;
-      return { start: toKey(s), end: toKey(e), label: t, title: t };
-    }
-    if (view === 'Year') {
-      const y = anchor.getFullYear();
-      return { start: `${y}-01-01`, end: `${y}-12-31`, label: String(y), title: String(y) };
-    }
-    return { start: null, end: null, label: 'All time', title: 'All time' };
-  }, [view, anchor]);
-
-  const total = sumRange(entries, period.start, period.end, state.weekends).total;
-  const monthStart = toKey(startOfMonth(anchor));
-  const monthEnd = toKey(endOfMonth(anchor));
-  const monthTotal = sumRange(entries, monthStart, monthEnd, state.weekends).total;
-
-  const move = (dir) => {
-    if (view === 'Week') setAnchor(addDays(anchor, 7 * dir));
-    else if (view === 'Month') setAnchor(addMonths(anchor, dir));
-    else if (view === 'Year') setAnchor(new Date(anchor.getFullYear() + dir, anchor.getMonth(), 1));
   };
 
-  // ---- mutations ----
-  const saveEntry = (key, pnl, note) => {
-    setState((s) => ({
-      ...s,
-      entries: { ...s.entries, [acc]: { ...(s.entries[acc] || {}), [key]: { pnl, note } } },
-    }));
-    setEditKey(null);
-  };
-
-  const clearEntry = (key) => {
-    setState((s) => {
-      const copy = { ...(s.entries[acc] || {}) };
-      delete copy[key];
-      return { ...s, entries: { ...s.entries, [acc]: copy } };
-    });
-    setEditKey(null);
-  };
-
-  const addAccount = (name) => {
-    const id = `acc_${Date.now()}`;
-    setState((s) => ({
-      ...s,
-      accounts: [...s.accounts, { id, name }],
-      entries: { ...s.entries, [id]: {} },
-      goals: { ...s.goals, [id]: 0 },
-      activeAccount: id,
-    }));
-    setAccountOpen(false);
-  };
-
-  // ---- derived views ----
-  const weeks = view === 'Week' ? weekRow(anchor, cols) : monthWeeks(anchor, cols);
-  const allStats = useMemo(() => calcStats(entries, state.weekends), [entries, state.weekends]);
-  const totals = useMemo(() => monthTotals(entries, state.weekends), [entries, state.weekends]);
-
-  if (!loaded) {
-    return <View style={[styles.root, { backgroundColor: theme.bg }]} />;
-  }
+  const totalPnL = calculateMonthlyPnL(entries, year, monthIndex, selectedAccount, hideWeekends);
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.bg, paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight || 24 : 44 }]}>
-      <StatusBar style={theme.name === 'dark' ? 'light' : 'dark'} />
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        {/* Top bar: view tabs + theme toggle */}
-        <View style={styles.topRow}>
-          <View style={{ flex: 1 }}>
-            <ViewTabs value={view} onChange={setView} theme={theme} />
-          </View>
-          <TouchableOpacity
-            onPress={() => update({ theme: state.theme === 'dark' ? 'light' : 'dark' })}
-            style={[styles.themeBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-          >
-            <Text style={{ fontSize: 18 }}>{state.theme === 'dark' ? '☀️' : '🌙'}</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+
+      <ViewTabs activeTab={activeTab} onSelectTab={setActiveTab} theme={theme} />
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+        {/* Navigation Bar */}
+        <View style={styles.navHeader}>
+          <TouchableOpacity onPress={handlePrevMonth}>
+            <Text style={[styles.arrow, { color: theme.textPrimary }]}>‹</Text>
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
+            {MONTH_NAMES[monthIndex]} {year}
+          </Text>
+          <TouchableOpacity onPress={handleNextMonth}>
+            <Text style={[styles.arrow, { color: theme.textPrimary }]}>›</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Period navigation */}
-        <View style={styles.navRow}>
-          {view !== 'All time' ? (
-            <TouchableOpacity onPress={() => move(-1)} style={[styles.arrow, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-              <Text style={{ color: theme.text, fontSize: 20 }}>‹</Text>
-            </TouchableOpacity>
-          ) : <View style={styles.arrow} />}
-          <Text style={[styles.navTitle, { color: theme.text }]}>{period.title}</Text>
-          {view !== 'All time' ? (
-            <TouchableOpacity onPress={() => move(1)} style={[styles.arrow, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-              <Text style={{ color: theme.text, fontSize: 20 }}>›</Text>
-            </TouchableOpacity>
-          ) : <View style={styles.arrow} />}
-        </View>
-
-        {/* Summary cards */}
+        {/* Summary Header Cards */}
         <SummaryRow
-          total={total}
-          periodLabel={period.label}
-          monthTotal={monthTotal}
+          totalPnL={totalPnL}
           goal={goal}
-          onEditGoal={() => setGoalOpen(true)}
+          onOpenGoalModal={() => setShowGoalModal(true)}
           theme={theme}
         />
 
-        {/* Filter row */}
+        {/* Filters & Export Action */}
         <View style={styles.filterRow}>
-          <TouchableOpacity
-            onPress={() => update({ weekends: !state.weekends })}
-            style={[styles.pill, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-          >
-            <Text style={{ color: theme.text, fontWeight: '600', fontSize: 13 }}>
-              Weekends: <Text style={{ color: state.weekends ? theme.posInline : theme.subText }}>{state.weekends ? 'ON' : 'OFF'}</Text>
+          <TouchableOpacity onPress={() => setHideWeekends(!hideWeekends)}>
+            <Text style={[styles.filterText, { color: theme.textSecondary }]}>
+              Weekends: <Text style={{ color: theme.textPrimary }}>{hideWeekends ? 'OFF' : 'ON'}</Text>
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setAccountOpen(true)}
-            style={[styles.pill, { backgroundColor: theme.card, borderColor: theme.cardBorder, flex: 1 }]}
-          >
-            <Text style={{ color: theme.text, fontWeight: '600', fontSize: 13 }} numberOfLines={1}>{accountName}  ▾</Text>
+
+          <TouchableOpacity onPress={() => setShowAccountModal(true)}>
+            <Text style={[styles.filterText, { color: theme.accent }]}>
+              {selectedAccount} ▾
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleExportToExcel} style={[styles.exportBtn, { backgroundColor: theme.cardBg }]}>
+            <Text style={{ color: theme.accent, fontSize: 12, fontWeight: '700' }}>📊 Excel</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Main content */}
-        <View style={{ marginTop: 14 }}>
-          {(view === 'Week' || view === 'Month') && (
-            <CalendarGrid
-              weeks={weeks}
-              cols={cols}
-              entries={entries}
-              theme={theme}
-              todayKey={todayKey}
-              onPressDay={setEditKey}
-            />
-          )}
-          {view === 'Year' && (
-            <YearView
-              year={anchor.getFullYear()}
-              totals={totals}
-              theme={theme}
-              onPickMonth={(m) => {
-                setAnchor(new Date(anchor.getFullYear(), m, 1));
-                setView('Month');
-              }}
-            />
-          )}
-          {view === 'All time' && <AllTimeView stats={allStats} totals={totals} theme={theme} />}
-        </View>
+        {/* Dynamic Main View */}
+        {activeTab === 'Month' && (
+          <CalendarGrid
+            year={year}
+            monthIndex={monthIndex}
+            entries={entries}
+            hideWeekends={hideWeekends}
+            onSelectDate={(key) => setSelectedDateKey(key)}
+            theme={theme}
+          />
+        )}
+
+        {activeTab === 'Year' && (
+          <YearView
+            year={year}
+            entries={entries}
+            selectedAccount={selectedAccount}
+            theme={theme}
+          />
+        )}
+
+        {activeTab === 'All time' && (
+          <AllTimeView entries={entries} theme={theme} />
+        )}
       </ScrollView>
 
+      {/* Theme Toggle Floating Bar */}
+      <View style={[styles.bottomBar, { backgroundColor: theme.cardBg, borderTopColor: theme.border }]}>
+        <TouchableOpacity onPress={() => {
+          const newTheme = !isDarkMode;
+          setIsDarkMode(newTheme);
+          saveThemeMode(newTheme);
+        }}>
+          <Text style={{ color: theme.textPrimary, fontWeight: '600' }}>
+            Theme: {isDarkMode ? '🌙 Dark' : '☀️ Light'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Entry Input Modal */}
       <EntryModal
-        visible={!!editKey}
-        dateKey={editKey}
-        entry={editKey ? entries[editKey] : null}
+        visible={!!selectedDateKey}
+        dateKey={selectedDateKey}
+        initialEntry={selectedDateKey ? entries[selectedDateKey] : null}
+        onSave={handleSaveEntry}
+        onDelete={handleDeleteEntry}
+        onClose={() => setSelectedDateKey(null)}
         theme={theme}
-        onSave={(pnl, note) => saveEntry(editKey, pnl, note)}
-        onClear={() => clearEntry(editKey)}
-        onClose={() => setEditKey(null)}
       />
+
+      {/* Goal Modal */}
       <GoalModal
-        visible={goalOpen}
-        goal={goal}
-        theme={theme}
-        onSave={(g) => {
-          update({ goals: { ...state.goals, [acc]: g } });
-          setGoalOpen(false);
+        visible={showGoalModal}
+        currentGoal={goal}
+        onSave={(newGoal) => {
+          setGoal(newGoal);
+          saveGoal(newGoal);
         }}
-        onClose={() => setGoalOpen(false)}
+        onClose={() => setShowGoalModal(false)}
+        theme={theme}
       />
+
+      {/* Account Modal */}
       <AccountModal
-        visible={accountOpen}
-        accounts={state.accounts}
-        activeId={acc}
-        theme={theme}
-        onSelect={(id) => {
-          update({ activeAccount: id });
-          setAccountOpen(false);
+        visible={showAccountModal}
+        accounts={accounts}
+        selectedAccount={selectedAccount}
+        onSelect={(acc) => {
+          setSelectedAccount(acc);
+          saveSelectedAccount(acc);
         }}
-        onAdd={addAccount}
-        onClose={() => setAccountOpen(false)}
+        onClose={() => setShowAccountModal(false)}
+        theme={theme}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: { padding: 16, paddingBottom: 40 },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  themeBtn: { width: 44, height: 44, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 16 },
-  arrow: { width: 40, height: 40, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', borderColor: 'transparent' },
-  navTitle: { fontSize: 20, fontWeight: '800' },
-  filterRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  pill: { paddingHorizontal: 14, paddingVertical: 11, borderRadius: 14, borderWidth: 1, justifyContent: 'center' },
+  container: {
+    flex: 1,
+  },
+  navHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginVertical: 8,
+  },
+  arrow: {
+    fontSize: 28,
+    fontWeight: '300',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    justify.content: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  filterText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  exportBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  bottomBar: {
+    padding: 14,
+    alignItems: 'center',
+    borderTopWidth: 1,
+  },
 });
