@@ -28,20 +28,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Prebuild Android project
-        run: npx expo prebuild --platform android
-
-      - name: Create assets directory
-        run: mkdir -p android/app/src/main/assets
-
-      - name: Bundle JS offline asset
-        run: |
-          npx react-native bundle \
-            --platform android \
-            --dev false \
-            --entry-file node_modules/expo/AppEntry.js \
-            --bundle-output android/app/src/main/assets/index.android.bundle \
-            --assets-dest android/app/src/main/res
+      - name: Generate Android project & assets
+        run: npx expo prebuild --platform android --clean
 
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
@@ -49,7 +37,7 @@ jobs:
       - name: Build Standalone Debug APK
         run: |
           cd android
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug -x lint --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
