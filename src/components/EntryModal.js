@@ -1,97 +1,120 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import ModalSheet from './ModalSheet';
-import { parseKey, MONTHS, WEEKDAYS, mondayIndex } from '../dateUtils';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 
-export default function EntryModal({ visible, dateKey, entry, theme, onSave, onClear, onClose }) {
-  const [sign, setSign] = useState('+');
+export default function EntryModal({ visible, dateKey, initialEntry, onSave, onDelete, onClose, theme }) {
+  const [type, setType] = useState('profit');
   const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
 
   useEffect(() => {
-    if (!visible) return;
-    if (entry) {
-      setSign(entry.pnl < 0 ? '-' : '+');
-      setAmount(String(Math.abs(entry.pnl)));
-      setNote(entry.note || '');
+    if (initialEntry) {
+      const val = parseFloat(initialEntry.amount);
+      setType(val < 0 ? 'loss' : 'profit');
+      setAmount(Math.abs(val).toString());
     } else {
-      setSign('+');
+      setType('profit');
       setAmount('');
-      setNote('');
     }
-  }, [visible, dateKey]);
+  }, [initialEntry, visible]);
 
-  const date = dateKey ? parseKey(dateKey) : null;
-  const subtitle = date
-    ? `${WEEKDAYS[mondayIndex(date)]}, ${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`
-    : '';
-
-  const save = () => {
-    const cleaned = amount.replace(/[^0-9.]/g, '');
-    const num = parseFloat(cleaned);
-    if (Number.isNaN(num)) {
-      if (entry) onClear();
-      else onClose();
-      return;
-    }
-    onSave(sign === '-' ? -Math.abs(num) : Math.abs(num), note.trim());
-  };
-
-  const signBtn = (s) => {
-    const active = sign === s;
-    const bg = active ? (s === '+' ? theme.posBg : theme.negBg) : theme.inputBg;
-    const color = active ? (s === '+' ? theme.posText : theme.negText) : theme.subText;
-    return (
-      <TouchableOpacity style={[styles.signBtn, { backgroundColor: bg }]} onPress={() => setSign(s)}>
-        <Text style={{ color, fontSize: 22, fontWeight: '700' }}>{s === '+' ? 'Profit' : 'Loss'}</Text>
-      </TouchableOpacity>
-    );
+  const handleSave = () => {
+    if (!amount || isNaN(amount)) return;
+    const numericVal = parseFloat(amount) * (type === 'loss' ? -1 : 1);
+    onSave(dateKey, numericVal);
   };
 
   return (
-    <ModalSheet visible={visible} onClose={onClose} title="Log P&L" subtitle={subtitle} theme={theme}>
-      <View style={styles.signRow}>
-        {signBtn('+')}
-        {signBtn('-')}
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.overlay}>
+        <View style={[styles.modalCard, { backgroundColor: theme.cardBg }]}>
+          <Text style={[styles.title, { color: theme.textPrimary }]}>Date: {dateKey}</Text>
+
+          <View style={styles.toggleRow}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, type === 'profit' && { backgroundColor: theme.profitBg }]}
+              onPress={() => setType('profit')}
+            >
+              <Text style={{ color: theme.profitText, fontWeight: '700' }}>Profit (+₹)</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, type === 'loss' && { backgroundColor: theme.lossBg }]}
+              onPress={() => setType('loss')}
+            >
+              <Text style={{ color: theme.lossText, fontWeight: '700' }}>Loss (-₹)</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TextInput
+            style={[styles.input, { color: theme.textPrimary, borderColor: theme.border }]}
+            placeholder="₹0.00"
+            placeholderTextColor={theme.textSecondary}
+            keyboardType="decimal-pad"
+            value={amount}
+            onChangeText={setAmount}
+          />
+
+          <View style={styles.btnRow}>
+            {initialEntry && (
+              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: theme.lossBg }]} onPress={() => onDelete(dateKey)}>
+                <Text style={{ color: theme.lossText, fontWeight: '600' }}>Delete</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: theme.border }]} onPress={onClose}>
+              <Text style={{ color: theme.textSecondary, fontWeight: '600' }}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: theme.accent }]} onPress={handleSave}>
+              <Text style={{ color: '#FFF', fontWeight: '700' }}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
-      <Text style={[styles.label, { color: theme.subText }]}>Amount</Text>
-      <TextInput
-        value={amount}
-        onChangeText={setAmount}
-        placeholder="0.00"
-        placeholderTextColor={theme.emptyText}
-        keyboardType="decimal-pad"
-        style={[styles.input, { backgroundColor: theme.inputBg, color: theme.text }]}
-        autoFocus
-      />
-      <Text style={[styles.label, { color: theme.subText }]}>Note (optional)</Text>
-      <TextInput
-        value={note}
-        onChangeText={setNote}
-        placeholder="What happened today?"
-        placeholderTextColor={theme.emptyText}
-        style={[styles.input, { backgroundColor: theme.inputBg, color: theme.text, minHeight: 64, textAlignVertical: 'top' }]}
-        multiline
-      />
-      <View style={styles.actions}>
-        {entry ? (
-          <TouchableOpacity style={[styles.btn, { backgroundColor: theme.inputBg }]} onPress={onClear}>
-            <Text style={{ color: theme.negInline, fontWeight: '600' }}>Clear</Text>
-          </TouchableOpacity>
-        ) : null}
-        <TouchableOpacity style={[styles.btn, { backgroundColor: theme.accent, flex: 1 }]} onPress={save}>
-          <Text style={{ color: '#fff', fontWeight: '700' }}>Save</Text>
-        </TouchableOpacity>
-      </View>
-    </ModalSheet>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  signRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
-  signBtn: { flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center' },
-  label: { fontSize: 12, marginBottom: 6, marginTop: 4, fontWeight: '600' },
-  input: { borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 18 },
-  actions: { flexDirection: 'row', gap: 10, marginTop: 18 },
-  btn: { paddingVertical: 14, paddingHorizontal: 22, borderRadius: 14, alignItems: 'center' },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    borderRadius: 16,
+    padding: 20,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 18,
+    marginBottom: 20,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  actionBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
 });
