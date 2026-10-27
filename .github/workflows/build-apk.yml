@@ -31,16 +31,28 @@ jobs:
       - name: Prebuild Android project
         run: npx expo prebuild --platform android
 
+      - name: Create assets directory
+        run: mkdir -p android/app/src/main/assets
+
+      - name: Bundle JS offline asset
+        run: |
+          npx react-native bundle \
+            --platform android \
+            --dev false \
+            --entry-file node_modules/expo/AppEntry.js \
+            --bundle-output android/app/src/main/assets/index.android.bundle \
+            --assets-dest android/app/src/main/res
+
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
 
-      - name: Build Release APK
+      - name: Build Standalone Debug APK
         run: |
           cd android
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pnl-tracker-release-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          name: pnl-tracker-offline-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
