@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 export default function SummaryRow({ totalPnL, goal, onOpenGoalModal, theme }) {
+  const roundedPnL = Math.round(totalPnL || 0);
+  const roundedGoal = Math.round(goal || 0);
   const progressPercent = Math.min(Math.max((totalPnL / (goal || 1)) * 100, 0), 100);
 
   return (
@@ -9,8 +11,8 @@ export default function SummaryRow({ totalPnL, goal, onOpenGoalModal, theme }) {
       {/* Total PnL Card */}
       <View style={[styles.card, { backgroundColor: theme.cardBg }]}>
         <Text style={[styles.cardTitle, { color: theme.textSecondary }]}>Total P&L</Text>
-        <Text style={[styles.pnlValue, { color: totalPnL >= 0 ? theme.profitText : theme.lossText }]}>
-          {totalPnL >= 0 ? `+₹${totalPnL.toFixed(2)}` : `-₹${Math.abs(totalPnL).toFixed(2)}`}
+        <Text style={[styles.pnlValue, { color: roundedPnL >= 0 ? theme.profitText : theme.lossText }]}>
+          {roundedPnL >= 0 ? `+₹${roundedPnL}` : `-₹${Math.abs(roundedPnL)}`}
         </Text>
       </View>
 
@@ -28,8 +30,8 @@ export default function SummaryRow({ totalPnL, goal, onOpenGoalModal, theme }) {
         </View>
 
         <View style={styles.goalFooter}>
-          <Text style={[styles.goalText, { color: theme.textPrimary }]}>₹{Math.max(0, totalPnL).toFixed(2)}</Text>
-          <Text style={[styles.goalText, { color: theme.textSecondary }]}>₹{goal.toFixed(2)}</Text>
+          <Text style={[styles.goalText, { color: theme.textPrimary }]}>₹{Math.max(0, roundedPnL)}</Text>
+          <Text style={[styles.goalText, { color: theme.textSecondary }]}>₹{roundedGoal}</Text>
         </View>
       </View>
     </View>
