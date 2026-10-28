@@ -1,21 +1,30 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
-export const VIEWS = ['Week', 'Month', 'Year', 'All time'];
+export default function ViewTabs({ activeTab, onSelectTab, theme }) {
+  const tabs = ['Week', 'Month', 'Year', 'All time'];
 
-export default function ViewTabs({ value, onChange, theme }) {
   return (
-    <View style={[styles.wrap, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-      {VIEWS.map((v) => {
-        const active = v === value;
+    <View style={[styles.container, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
+      {tabs.map((tab) => {
+        const isActive = activeTab === tab;
         return (
           <TouchableOpacity
-            key={v}
-            style={[styles.tab, active && { backgroundColor: theme.tabActiveBg }]}
-            onPress={() => onChange(v)}
+            key={tab}
+            style={[
+              styles.tabButton,
+              isActive && { backgroundColor: theme.accent }
+            ]}
+            onPress={() => onSelectTab(tab)}
+            activeOpacity={0.7}
           >
-            <Text style={{ color: active ? theme.tabActiveText : theme.subText, fontWeight: active ? '700' : '500', fontSize: 14 }}>
-              {v}
+            <Text
+              style={[
+                styles.tabText,
+                { color: isActive ? '#FFFFFF' : theme.textSecondary }
+              ]}
+            >
+              {tab}
             </Text>
           </TouchableOpacity>
         );
@@ -25,6 +34,24 @@ export default function ViewTabs({ value, onChange, theme }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flexDirection: 'row', padding: 4, borderRadius: 16, borderWidth: 1 },
-  tab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 12 },
+  container: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginVertical: 10,
+    padding: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: 'space-between',
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
 });
