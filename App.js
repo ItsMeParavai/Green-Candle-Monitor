@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, ScrollView, Alert } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, ScrollView, Alert, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -19,7 +19,7 @@ import AccountModal from './src/components/AccountModal';
 import YearView from './src/components/YearView';
 import AllTimeView from './src/components/AllTimeView';
 
-// Fallback theme object to prevent crashes if imports fail
+// Fallback theme object
 const DEFAULT_THEME = darkTheme || {
   background: '#0A0E12',
   cardBg: '#161B22',
@@ -70,7 +70,6 @@ function MainApp() {
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
 
-  // Safely select theme or fall back to default
   const theme = (isDarkMode ? darkTheme : lightTheme) || DEFAULT_THEME;
 
   useEffect(() => {
@@ -359,6 +358,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight || 24) + 8 : 0,
   },
   navHeader: {
     flexDirection: 'row',
