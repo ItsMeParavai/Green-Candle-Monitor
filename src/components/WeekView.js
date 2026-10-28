@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { formatDateKey } from '../dateUtils';
 
 export default function WeekView({ currentDate, entries, hideWeekends, onSelectDate, theme }) {
-  // Calculate Monday of the current active week
   const tempDate = new Date(currentDate);
   const dayOfWeek = tempDate.getDay();
   const distanceToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
@@ -24,7 +23,8 @@ export default function WeekView({ currentDate, entries, hideWeekends, onSelectD
     const dateKey = formatDateKey(y, m, dateNum);
 
     const entry = entries[dateKey];
-    const amount = entry ? parseFloat(entry.amount) : null;
+    const rawAmount = entry ? parseFloat(entry.amount) : null;
+    const amount = rawAmount !== null && !isNaN(rawAmount) ? Math.round(rawAmount) : null;
 
     days.push({
       label: dayLabels[i],
@@ -40,7 +40,7 @@ export default function WeekView({ currentDate, entries, hideWeekends, onSelectD
         let cardBg = theme.cardBg;
         let textColor = theme.textSecondary;
 
-        if (item.amount !== null && !isNaN(item.amount)) {
+        if (item.amount !== null) {
           if (item.amount > 0) {
             cardBg = theme.profitBg;
             textColor = theme.profitText;
@@ -65,8 +65,8 @@ export default function WeekView({ currentDate, entries, hideWeekends, onSelectD
               {item.amount === null
                 ? '—'
                 : item.amount > 0
-                ? `+₹${item.amount.toFixed(2)}`
-                : `-₹${Math.abs(item.amount).toFixed(2)}`}
+                ? `+₹${item.amount}`
+                : `-₹${Math.abs(item.amount)}`}
             </Text>
           </TouchableOpacity>
         );
