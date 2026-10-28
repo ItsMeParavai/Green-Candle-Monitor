@@ -13,6 +13,7 @@ import { calculateMonthlyPnL } from './src/calc';
 import ViewTabs from './src/components/ViewTabs';
 import SummaryRow from './src/components/SummaryRow';
 import CalendarGrid from './src/components/CalendarGrid';
+import WeekView from './src/components/WeekView';
 import EntryModal from './src/components/EntryModal';
 import GoalModal from './src/components/GoalModal';
 import AccountModal from './src/components/AccountModal';
@@ -269,7 +270,17 @@ function MainApp() {
         </View>
 
         {/* Dynamic Main View */}
-        {(activeTab === 'Month' || activeTab === 'Week') && (
+        {activeTab === 'Week' && (
+          <WeekView
+            currentDate={currentDate}
+            entries={entries}
+            hideWeekends={hideWeekends}
+            onSelectDate={(key) => setSelectedDateKey(key)}
+            theme={theme}
+          />
+        )}
+
+        {activeTab === 'Month' && (
           <CalendarGrid
             year={year}
             monthIndex={monthIndex}
