@@ -19,7 +19,21 @@ import AccountModal from './src/components/AccountModal';
 import YearView from './src/components/YearView';
 import AllTimeView from './src/components/AllTimeView';
 
-// Error Boundary Guard to catch any runtime errors gracefully
+// Fallback theme object to prevent crashes if imports fail
+const DEFAULT_THEME = darkTheme || {
+  background: '#0A0E12',
+  cardBg: '#161B22',
+  border: '#21262D',
+  textPrimary: '#FFFFFF',
+  textSecondary: '#8B949E',
+  profitBg: '#133820',
+  profitText: '#3FB950',
+  lossBg: '#3D1314',
+  lossText: '#F85149',
+  accent: '#58A6FF',
+  barBg: '#21262D',
+};
+
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
   static getDerivedStateFromError(error) {
@@ -56,7 +70,8 @@ function MainApp() {
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
 
-  const theme = isDarkMode ? darkTheme : lightTheme;
+  // Safely select theme or fall back to default
+  const theme = (isDarkMode ? darkTheme : lightTheme) || DEFAULT_THEME;
 
   useEffect(() => {
     (async () => {
