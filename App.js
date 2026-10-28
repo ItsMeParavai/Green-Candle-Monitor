@@ -19,7 +19,6 @@ import AccountModal from './src/components/AccountModal';
 import YearView from './src/components/YearView';
 import AllTimeView from './src/components/AllTimeView';
 
-// Fallback theme object
 const DEFAULT_THEME = darkTheme || {
   background: '#0A0E12',
   cardBg: '#161B22',
@@ -270,7 +269,7 @@ function MainApp() {
         </View>
 
         {/* Dynamic Main View */}
-        {activeTab === 'Month' && (
+        {(activeTab === 'Month' || activeTab === 'Week') && (
           <CalendarGrid
             year={year}
             monthIndex={monthIndex}
