@@ -47,12 +47,13 @@ export default function CalendarGrid({ year, monthIndex, entries, hideWeekends, 
 
           const dateKey = formatDateKey(year, monthIndex, day);
           const entry = entries[dateKey];
-          const amount = entry ? parseFloat(entry.amount) : null;
+          const rawAmount = entry ? parseFloat(entry.amount) : null;
+          const amount = rawAmount !== null && !isNaN(rawAmount) ? Math.round(rawAmount) : null;
 
           let cardBg = theme.cardBg;
           let textColor = theme.textSecondary;
 
-          if (amount !== null && !isNaN(amount)) {
+          if (amount !== null) {
             if (amount > 0) {
               cardBg = theme.profitBg;
               textColor = theme.profitText;
@@ -73,8 +74,8 @@ export default function CalendarGrid({ year, monthIndex, entries, hideWeekends, 
                 {amount === null
                   ? '—'
                   : amount > 0
-                  ? `+₹${amount.toFixed(2)}`
-                  : `-₹${Math.abs(amount).toFixed(2)}`}
+                  ? `+₹${amount}`
+                  : `-₹${Math.abs(amount)}`}
               </Text>
             </TouchableOpacity>
           );
