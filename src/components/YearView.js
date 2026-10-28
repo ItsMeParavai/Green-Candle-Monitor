@@ -7,7 +7,8 @@ export default function YearView({ year, entries, selectedAccount, theme }) {
   return (
     <View style={styles.container}>
       {MONTH_NAMES.map((name, index) => {
-        const pnl = calculateMonthlyPnL(entries, year, index, selectedAccount);
+        const rawPnL = calculateMonthlyPnL(entries, year, index, selectedAccount);
+        const pnl = Math.round(rawPnL || 0);
         return (
           <View key={name} style={[styles.monthCard, { backgroundColor: theme.cardBg }]}>
             <Text style={[styles.monthName, { color: theme.textSecondary }]}>{name}</Text>
@@ -17,7 +18,7 @@ export default function YearView({ year, entries, selectedAccount, theme }) {
                 { color: pnl >= 0 ? theme.profitText : theme.lossText }
               ]}
             >
-              {pnl >= 0 ? `+₹${pnl.toFixed(2)}` : `-₹${Math.abs(pnl).toFixed(2)}`}
+              {pnl >= 0 ? `+₹${pnl}` : `-₹${Math.abs(pnl)}`}
             </Text>
           </View>
         );
