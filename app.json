@@ -1,21 +1,26 @@
 {
   "expo": {
-    "name": "PnL Tracker",
-    "slug": "pnl-tracker",
+    "name": "Green Candle Monitor",
+    "slug": "green-candle-monitor",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
     "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
     "splash": {
       "resizeMode": "contain",
-      "backgroundColor": "#0A0E12"
+      "backgroundColor": "#0D1117"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#0A0E12"
+        "backgroundColor": "#0D1117"
       },
-      "package": "com.pnltracker.app"
+      "package": "com.itsmeparavai.greencandlemonitor"
     }
   }
 }
