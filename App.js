@@ -18,7 +18,7 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// --- THEME DEFINITIONS ---
+// --- THEMES ---
 const darkTheme = {
   background: '#0D1117',
   cardBg: '#161B22',
@@ -1172,7 +1172,7 @@ const styles = StyleSheet.create({
   },
   goalFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justify.content || 'space-between',
   },
   gridCard: {
     height: 60,
@@ -1429,7 +1429,7 @@ const styles = StyleSheet.create({
   chartTrack: {
     width: 12,
     height: '75%',
-    justify.content: 'flex-end',
+    justifyContent: 'flex-end',
   },
   chartXLabel: {
     fontSize: 10,
