@@ -652,7 +652,6 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
         </Text>
       </View>
 
-      {/* HERO NET REALIZED P&L */}
       <View style={[styles.heroCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>NET REALIZED P&L</Text>
         <Text style={[styles.heroValue, { color: netTotalPnL >= 0 ? theme.profitText : theme.lossText }]}>
@@ -677,7 +676,6 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
         </View>
       </View>
 
-      {/* KPI GRID */}
       <View style={styles.widgetHeader}>
         <Text style={[styles.widgetTitle, { color: theme.textPrimary }]}>⚡ Key Performance Indicators</Text>
       </View>
@@ -708,7 +706,6 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
         </View>
       </View>
 
-      {/* WIN/LOSS GAUGE */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <View style={styles.widgetTopRow}>
           <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>🎯 Session Ratio</Text>
@@ -726,7 +723,6 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
         </View>
       </View>
 
-      {/* MONTHLY P&L BAR CHART */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>📅 Monthly P&L Trend ({year})</Text>
 
@@ -753,7 +749,6 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
         </View>
       </View>
 
-      {/* WEEKLY BREAKDOWN */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>
           📆 Weekly Breakdown ({MONTH_NAMES[currentDate ? currentDate.getMonth() : 0]})
@@ -791,7 +786,6 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
         </View>
       </View>
 
-      {/* CUMULATIVE EQUITY CURVE */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>📈 Cumulative Equity Trajectory</Text>
 
@@ -822,7 +816,6 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
         )}
       </View>
 
-      {/* ACCOUNT PERFORMANCE */}
       <View style={styles.widgetHeader}>
         <Text style={[styles.widgetTitle, { color: theme.textPrimary }]}>💼 Account Performance Breakdown</Text>
       </View>
@@ -892,7 +885,6 @@ function BottomNavBar({ activeTab, onSelectTab, theme }) {
   );
 }
 
-// --- MAIN APP ---
 function MainApp() {
   const [activeNavTab, setActiveNavTab] = useState('Home');
   const [activeTab, setActiveTab] = useState('Month');
@@ -1172,7 +1164,7 @@ const styles = StyleSheet.create({
   },
   goalFooter: {
     flexDirection: 'row',
-    justify.content || 'space-between',
+    justifyContent: 'space-between',
   },
   gridCard: {
     height: 60,
