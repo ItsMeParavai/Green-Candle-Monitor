@@ -2,32 +2,30 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { getDaysInMonth, getFirstDayOfMonth, formatDateKey } from '../dateUtils';
 
-export default function CalendarGrid({ year, monthIndex, entries, hideWeekends, onSelectDate, theme }) {
+export default function CalendarGrid({ year, monthIndex, entries, onSelectDate, theme }) {
   const daysInMonth = getDaysInMonth(year, monthIndex);
   const firstDay = getFirstDayOfMonth(year, monthIndex);
 
-  const weekHeaders = hideWeekends
-    ? ['MON', 'TUE', 'WED', 'THU', 'FRI']
-    : ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-
+  const weekHeaders = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
   const gridCells = [];
-  for (let i = 0; i < firstDay; i++) {
-    const dayOfWeek = i;
-    if (hideWeekends && (dayOfWeek === 5 || dayOfWeek === 6)) continue;
+
+  // Pad empty cells for weekdays leading up to the 1st
+  const initialPadCount = firstDay >= 5 ? 0 : firstDay;
+  for (let i = 0; i < initialPadCount; i++) {
     gridCells.push(null);
   }
 
+  // Push only Monday to Friday dates
   for (let day = 1; day <= daysInMonth; day++) {
     const dateObj = new Date(year, monthIndex, day);
-    let dayOfWeek = dateObj.getDay();
-    dayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const dayOfWeek = dateObj.getDay();
 
-    if (hideWeekends && (dayOfWeek === 5 || dayOfWeek === 6)) continue;
+    if (dayOfWeek === 0 || dayOfWeek === 6) continue; // Skip Sat & Sun
 
     gridCells.push(day);
   }
 
-  const columns = hideWeekends ? 5 : 7;
+  const columns = 5;
 
   return (
     <View style={styles.container}>
