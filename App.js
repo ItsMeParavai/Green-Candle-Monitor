@@ -310,6 +310,8 @@ function MainApp() {
           year={year}
           entries={entries}
           selectedAccount={selectedAccount}
+          accounts={accounts}
+          currentDate={currentDate}
           theme={theme}
         />
       )}
@@ -402,7 +404,7 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justify.content: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     marginBottom: 12,
