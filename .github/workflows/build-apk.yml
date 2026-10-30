@@ -25,10 +25,8 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Clean lockfile and install dependencies
-        run: |
-          rm -f package-lock.json
-          npm install --force
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
 
       - name: Generate Android native project
         run: npx expo prebuild --platform android --clean
