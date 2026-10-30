@@ -8,8 +8,6 @@ import {
   ScrollView,
   Alert,
   Platform,
-  TextInput,
-  Modal,
   StatusBar as RNStatusBar,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -20,14 +18,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- THEME DEFINITIONS ---
 const darkTheme = {
-  background: '#0A0E12',
+  background: '#0D1117',
   cardBg: '#161B22',
-  border: '#21262D',
-  textPrimary: '#FFFFFF',
+  cardBorder: '#30363D',
+  textPrimary: '#F0F6FC',
   textSecondary: '#8B949E',
-  profitBg: '#133820',
+  profitBg: '#0E2A1F',
   profitText: '#3FB950',
-  lossBg: '#3D1314',
+  lossBg: '#2D1214',
   lossText: '#F85149',
   accent: '#58A6FF',
   barBg: '#21262D',
@@ -36,7 +34,7 @@ const darkTheme = {
 const lightTheme = {
   background: '#F6F8FA',
   cardBg: '#FFFFFF',
-  border: '#D0D7DE',
+  cardBorder: '#D0D7DE',
   textPrimary: '#24292F',
   textSecondary: '#57606A',
   profitBg: '#E6F7EC',
@@ -107,8 +105,8 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#0A0E12', justifyContent: 'center', padding: 20 }}>
-          <Text style={{ color: '#F44336', fontSize: 20, fontWeight: '700', marginBottom: 10 }}>App Runtime Error</Text>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#0D1117', justifyContent: 'center', padding: 20 }}>
+          <Text style={{ color: '#F85149', fontSize: 20, fontWeight: '700', marginBottom: 10 }}>Dashboard Runtime Error</Text>
           <Text style={{ color: '#FFF', fontSize: 14 }}>{this.state.error?.toString()}</Text>
         </SafeAreaView>
       );
@@ -121,7 +119,7 @@ class ErrorBoundary extends React.Component {
 function ViewTabs({ activeTab, onSelectTab, theme }) {
   const tabs = ['Week', 'Month', 'Year', 'All time'];
   return (
-    <View style={[styles.tabContainer, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
+    <View style={[styles.tabContainer, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
       {tabs.map((tab) => {
         const isActive = activeTab === tab;
         return (
@@ -147,14 +145,14 @@ function SummaryRow({ totalPnL, goal, onOpenGoalModal, theme }) {
 
   return (
     <View style={styles.summaryContainer}>
-      <View style={[styles.summaryCard, { backgroundColor: theme.cardBg }]}>
+      <View style={[styles.summaryCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.cardTitle, { color: theme.textSecondary }]}>Total P&L</Text>
         <Text style={[styles.pnlValue, { color: roundedPnL >= 0 ? theme.profitText : theme.lossText }]}>
           {roundedPnL >= 0 ? '+₹' + roundedPnL : '-₹' + Math.abs(roundedPnL)}
         </Text>
       </View>
 
-      <View style={[styles.summaryCard, { backgroundColor: theme.cardBg }]}>
+      <View style={[styles.summaryCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <View style={styles.goalHeader}>
           <Text style={[styles.cardTitle, { color: theme.textSecondary }]}>Monthly goal</Text>
           <TouchableOpacity onPress={onOpenGoalModal}>
@@ -229,7 +227,7 @@ function CalendarGrid({ year, monthIndex, entries, onSelectDate, theme }) {
           return (
             <TouchableOpacity
               key={dateKey}
-              style={[styles.gridCard, { backgroundColor: cardBg, width: '18%' }]}
+              style={[styles.gridCard, { backgroundColor: cardBg, borderColor: theme.cardBorder, width: '18%' }]}
               onPress={() => onSelectDate(dateKey)}
             >
               <Text style={{ fontSize: 12, fontWeight: '600', color: theme.textPrimary }}>{day}</Text>
@@ -279,7 +277,7 @@ function WeekView({ currentDate, entries, onSelectDate, theme }) {
         return (
           <TouchableOpacity
             key={item.dateKey}
-            style={[styles.weekRowCard, { backgroundColor: cardBg, borderColor: theme.border }]}
+            style={[styles.weekRowCard, { backgroundColor: cardBg, borderColor: theme.cardBorder }]}
             onPress={() => onSelectDate(item.dateKey)}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -302,7 +300,7 @@ function YearView({ year, entries, selectedAccount, theme }) {
       {MONTH_NAMES.map((name, index) => {
         const pnl = calculateMonthlyPnL(entries, year, index, selectedAccount);
         return (
-          <View key={name} style={[styles.yearMonthCard, { backgroundColor: theme.cardBg }]}>
+          <View key={name} style={[styles.yearMonthCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
             <Text style={{ fontSize: 13, fontWeight: '600', color: theme.textSecondary, marginBottom: 6 }}>{name}</Text>
             <Text style={{ fontSize: 16, fontWeight: '700', color: pnl >= 0 ? theme.profitText : theme.lossText }}>
               {pnl >= 0 ? '+₹' + pnl : '-₹' + Math.abs(pnl)}
@@ -330,7 +328,7 @@ function AllTimeView({ entries, theme }) {
 
   return (
     <View style={{ paddingHorizontal: 16, gap: 12 }}>
-      <View style={[styles.allTimeCard, { backgroundColor: theme.cardBg }]}>
+      <View style={[styles.allTimeCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: theme.textSecondary, marginBottom: 6 }}>Lifetime Net P&L</Text>
         <Text style={{ fontSize: 26, fontWeight: '700', color: netPnL >= 0 ? theme.profitText : theme.lossText }}>
           {netPnL >= 0 ? '+₹' + netPnL : '-₹' + Math.abs(netPnL)}
@@ -351,76 +349,360 @@ function AllTimeView({ entries, theme }) {
   );
 }
 
+// --- TRADER ANALYTICS DASHBOARD ---
 function AnalyticsView({ year, entries = {}, selectedAccount = 'Main Account', accounts = ['Main Account', 'Trading'], currentDate = new Date(), theme }) {
-  const [chartType, setChartType] = useState('All');
-
+  // 1. MONTHLY P&L DATA
   const monthlyData = MONTH_NAMES.map((monthName, idx) => {
     const rawVal = calculateMonthlyPnL(entries, year, idx, selectedAccount);
     return { month: monthName.slice(0, 3), amount: Math.round(rawVal || 0) };
   });
   const maxMonthlyAbs = Math.max(...monthlyData.map((d) => Math.abs(d.amount)), 1);
 
+  // 2. WEEKLY BREAKDOWN DATA
+  const getWeeklyBreakdown = () => {
+    const monthIdx = currentDate.getMonth();
+    const currYear = currentDate.getFullYear();
+    const firstDayOfMonth = new Date(currYear, monthIdx, 1);
+    const lastDayOfMonth = new Date(currYear, monthIdx + 1, 0);
+
+    const weeks = [];
+    let currentWeekStart = new Date(firstDayOfMonth);
+    let weekNum = 1;
+
+    while (currentWeekStart <= lastDayOfMonth) {
+      let weekEnd = new Date(currentWeekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      if (weekEnd > lastDayOfMonth) weekEnd = new Date(lastDayOfMonth);
+
+      let weekTotal = 0;
+      let d = new Date(currentWeekStart);
+      while (d <= weekEnd) {
+        const dayOfWeek = d.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+          const y = d.getFullYear();
+          const m = d.getMonth();
+          const dateNum = d.getDate();
+          const key = formatDateKey(y, m, dateNum);
+          const entry = entries[key];
+          if (entry) {
+            const acc = entry.account || 'Main Account';
+            if (selectedAccount === 'All' || acc === selectedAccount) {
+              const amt = Math.round(parseFloat(entry.amount || 0));
+              if (!isNaN(amt)) weekTotal += amt;
+            }
+          }
+        }
+        d.setDate(d.getDate() + 1);
+      }
+
+      weeks.push({
+        label: 'W' + weekNum,
+        range: currentWeekStart.getDate() + ' - ' + weekEnd.getDate() + ' ' + MONTH_NAMES[monthIdx].slice(0, 3),
+        amount: Math.round(weekTotal),
+      });
+
+      weekNum++;
+      currentWeekStart = new Date(weekEnd);
+      currentWeekStart.setDate(currentWeekStart.getDate() + 1);
+    }
+    return weeks;
+  };
+
+  const weeklyData = getWeeklyBreakdown();
+  const maxWeeklyAbs = Math.max(...weeklyData.map((w) => Math.abs(w.amount)), 1);
+
+  // 3. CUMULATIVE EQUITY DATA
+  const getCumulativeData = () => {
+    const sortedKeys = Object.keys(entries || {}).sort();
+    let runningTotal = 0;
+    const curve = [];
+
+    sortedKeys.forEach((key) => {
+      const parts = key.split('-').map(Number);
+      if (parts.length === 3) {
+        const [y, m, d] = parts;
+        const dateObj = new Date(y, m - 1, d);
+        if (dateObj.getDay() !== 0 && dateObj.getDay() !== 6) {
+          const entry = entries[key];
+          const acc = entry?.account || 'Main Account';
+          if (selectedAccount === 'All' || acc === selectedAccount) {
+            const amt = Math.round(parseFloat(entry?.amount || 0));
+            if (!isNaN(amt)) {
+              runningTotal += amt;
+              curve.push({
+                dateKey: key,
+                label: d + '/' + m,
+                total: runningTotal,
+              });
+            }
+          }
+        }
+      }
+    });
+
+    if (curve.length > 10) {
+      const step = Math.ceil(curve.length / 8);
+      return curve.filter((_, idx) => idx % step === 0 || idx === curve.length - 1);
+    }
+    return curve;
+  };
+
+  const cumulativeData = getCumulativeData();
+  const maxCumulativeAbs = Math.max(...cumulativeData.map((c) => Math.abs(c.total)), 1);
+
+  // 4. ACCOUNT PERFORMANCE DATA
+  const accountData = (accounts || ['Main Account', 'Trading']).map((accName) => {
+    let accTotal = 0;
+    let accProfits = 0;
+    let accLosses = 0;
+
+    Object.values(entries || {}).forEach((entry) => {
+      const acc = entry?.account || 'Main Account';
+      if (acc === accName) {
+        const amt = Math.round(parseFloat(entry?.amount || 0));
+        if (!isNaN(amt)) {
+          accTotal += amt;
+          if (amt > 0) accProfits += amt;
+          if (amt < 0) accLosses += Math.abs(amt);
+        }
+      }
+    });
+
+    return { name: accName, net: accTotal, profits: accProfits, losses: accLosses };
+  });
+
+  // 5. OVERALL METRICS CALCULATIONS
   let profitDays = 0;
   let lossDays = 0;
   let totalProfitSum = 0;
   let totalLossSum = 0;
+  let maxSingleProfit = 0;
+  let maxSingleLoss = 0;
 
   Object.values(entries || {}).forEach((entry) => {
     const acc = entry?.account || 'Main Account';
     if (selectedAccount === 'All' || acc === selectedAccount) {
       const val = Math.round(parseFloat(entry?.amount || 0));
-      if (val > 0) { profitDays++; totalProfitSum += val; }
-      else if (val < 0) { lossDays++; totalLossSum += Math.abs(val); }
+      if (val > 0) {
+        profitDays++;
+        totalProfitSum += val;
+        if (val > maxSingleProfit) maxSingleProfit = val;
+      } else if (val < 0) {
+        lossDays++;
+        totalLossSum += Math.abs(val);
+        if (Math.abs(val) > maxSingleLoss) maxSingleLoss = Math.abs(val);
+      }
     }
   });
 
   const totalEntries = profitDays + lossDays;
   const winRate = totalEntries > 0 ? Math.round((profitDays / totalEntries) * 100) : 0;
+  const avgProfit = profitDays > 0 ? Math.round(totalProfitSum / profitDays) : 0;
+  const avgLoss = lossDays > 0 ? Math.round(totalLossSum / lossDays) : 0;
+  const netTotalPnL = totalProfitSum - totalLossSum;
+  const profitFactor = totalLossSum > 0 ? (totalProfitSum / totalLossSum).toFixed(2) : totalProfitSum > 0 ? '∞' : '0.00';
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-      <View style={[styles.filterBar, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
-        {['All', 'Monthly', 'Weekly', 'Equity'].map((mode) => (
-          <TouchableOpacity
-            key={mode}
-            style={[styles.filterBtn, chartType === mode && { backgroundColor: theme.accent }]}
-            onPress={() => setChartType(mode)}
-          >
-            <Text style={{ fontSize: 11, fontWeight: '700', color: chartType === mode ? '#FFF' : theme.textSecondary }}>
-              {mode}
-            </Text>
-          </TouchableOpacity>
-        ))}
+    <ScrollView contentContainerStyle={styles.dashboardContainer}>
+      {/* DASHBOARD HEADER */}
+      <View style={styles.dashboardHeader}>
+        <Text style={[styles.dashboardTitle, { color: theme.textPrimary }]}>📊 Performance Dashboard</Text>
+        <Text style={[styles.dashboardSub, { color: theme.textSecondary }]}>
+          Account: <Text style={{ color: theme.accent, fontWeight: '700' }}>{selectedAccount}</Text>
+        </Text>
       </View>
 
-      <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>⚡ Key Indicators</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-        <View style={[styles.statCard, { backgroundColor: theme.cardBg }]}>
-          <Text style={{ fontSize: 12, color: theme.textSecondary }}>Win Rate</Text>
-          <Text style={{ fontSize: 20, fontWeight: '700', color: theme.accent }}>{winRate}%</Text>
-        </View>
-        <View style={[styles.statCard, { backgroundColor: theme.cardBg }]}>
-          <Text style={{ fontSize: 12, color: theme.textSecondary }}>Days Logged</Text>
-          <Text style={{ fontSize: 20, fontWeight: '700', color: theme.textPrimary }}>{totalEntries}</Text>
+      {/* HERO WIDGET: NET P&L BANNER */}
+      <View style={[styles.heroCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
+        <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>NET REALIZED P&L</Text>
+        <Text style={[styles.heroValue, { color: netTotalPnL >= 0 ? theme.profitText : theme.lossText }]}>
+          {netTotalPnL >= 0 ? '+₹' + netTotalPnL : '-₹' + Math.abs(netTotalPnL)}
+        </Text>
+
+        <View style={styles.heroRow}>
+          <View style={styles.heroSubItem}>
+            <Text style={[styles.heroSubLabel, { color: theme.textSecondary }]}>Profit Factor</Text>
+            <Text style={[styles.heroSubVal, { color: theme.textPrimary }]}>{profitFactor}</Text>
+          </View>
+
+          <View style={styles.heroSubItem}>
+            <Text style={[styles.heroSubLabel, { color: theme.textSecondary }]}>Win Rate</Text>
+            <Text style={[styles.heroSubVal, { color: theme.accent }]}>{winRate}%</Text>
+          </View>
+
+          <View style={styles.heroSubItem}>
+            <Text style={[styles.heroSubLabel, { color: theme.textSecondary }]}>Total Logged</Text>
+            <Text style={[styles.heroSubVal, { color: theme.textPrimary }]}>{totalEntries} Days</Text>
+          </View>
         </View>
       </View>
 
-      <Text style={[styles.sectionTitle, { color: theme.textPrimary, marginTop: 16 }]}>📅 Monthly Trend ({year})</Text>
-      <View style={[styles.chartCard, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
-        <View style={{ flexDirection: 'row', height: 160, alignItems: 'flex-end', justifyContent: 'space-between' }}>
+      {/* DASHBOARD WIDGET 1: KPI STAT GRID */}
+      <View style={styles.widgetHeader}>
+        <Text style={[styles.widgetTitle, { color: theme.textPrimary }]}>⚡ Key Performance Indicators</Text>
+      </View>
+
+      <View style={styles.kpiGrid}>
+        <View style={[styles.kpiCard, { backgroundColor: theme.profitBg, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.kpiLabel, { color: theme.profitText }]}>Avg Win / Day</Text>
+          <Text style={[styles.kpiValue, { color: theme.profitText }]}>+₹{avgProfit}</Text>
+          <Text style={[styles.kpiSub, { color: theme.profitText }]}>Best: +₹{maxSingleProfit}</Text>
+        </View>
+
+        <View style={[styles.kpiCard, { backgroundColor: theme.lossBg, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.kpiLabel, { color: theme.lossText }]}>Avg Loss / Day</Text>
+          <Text style={[styles.kpiValue, { color: theme.lossText }]}>-₹{avgLoss}</Text>
+          <Text style={[styles.kpiSub, { color: theme.lossText }]}>Worst: -₹{maxSingleLoss}</Text>
+        </View>
+
+        <View style={[styles.kpiCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.kpiLabel, { color: theme.textSecondary }]}>Green Days</Text>
+          <Text style={[styles.kpiValue, { color: theme.profitText }]}>{profitDays}</Text>
+          <Text style={[styles.kpiSub, { color: theme.textSecondary }]}>Profitable sessions</Text>
+        </View>
+
+        <View style={[styles.kpiCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.kpiLabel, { color: theme.textSecondary }]}>Red Days</Text>
+          <Text style={[styles.kpiValue, { color: theme.lossText }]}>{lossDays}</Text>
+          <Text style={[styles.kpiSub, { color: theme.textSecondary }]}>Losing sessions</Text>
+        </View>
+      </View>
+
+      {/* DASHBOARD WIDGET 2: WIN/LOSS GAUGE */}
+      <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
+        <View style={styles.widgetTopRow}>
+          <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>🎯 Session Ratio</Text>
+          <Text style={{ fontSize: 11, color: theme.accent, fontWeight: '700' }}>{winRate}% Win Consistency</Text>
+        </View>
+
+        <View style={styles.gaugeTrack}>
+          <View style={{ height: '100%', width: winRate + '%', backgroundColor: theme.profitText }} />
+          <View style={{ height: '100%', width: (100 - winRate) + '%', backgroundColor: theme.lossText }} />
+        </View>
+
+        <View style={styles.gaugeFooterRow}>
+          <Text style={{ color: theme.profitText, fontSize: 12, fontWeight: '700' }}>🟢 Win Days: {profitDays}</Text>
+          <Text style={{ color: theme.lossText, fontSize: 12, fontWeight: '700' }}>🔴 Loss Days: {lossDays}</Text>
+        </View>
+      </View>
+
+      {/* DASHBOARD WIDGET 3: MONTHLY BAR GRAPH */}
+      <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
+        <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>📅 Monthly P&L Trend ({year})</Text>
+
+        <View style={styles.chartContainer}>
           {monthlyData.map((item, index) => {
             const heightPercent = Math.min((Math.abs(item.amount) / maxMonthlyAbs) * 100, 100);
             const isProfit = item.amount >= 0;
+            let valDisplay = '';
+            if (item.amount > 0) valDisplay = '+' + item.amount;
+            else if (item.amount < 0) valDisplay = '' + item.amount;
+
             return (
-              <View key={index} style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
-                <View style={{ width: 12, height: '75%', justifyContent: 'flex-end' }}>
+              <View key={index} style={styles.chartColumn}>
+                <Text style={[styles.chartValText, { color: isProfit ? theme.profitText : theme.lossText }]}>
+                  {valDisplay}
+                </Text>
+                <View style={styles.chartTrack}>
                   <View style={{ width: '100%', borderRadius: 4, height: item.amount === 0 ? '4%' : Math.max(heightPercent, 8) + '%', backgroundColor: isProfit ? theme.profitText : theme.lossText }} />
                 </View>
-                <Text style={{ fontSize: 10, fontWeight: '600', color: theme.textSecondary, marginTop: 6 }}>{item.month}</Text>
+                <Text style={[styles.chartXLabel, { color: theme.textSecondary }]}>{item.month}</Text>
               </View>
             );
           })}
         </View>
+      </View>
+
+      {/* DASHBOARD WIDGET 4: WEEKLY BREAKDOWN */}
+      <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
+        <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>
+          📆 Weekly Breakdown ({MONTH_NAMES[currentDate.getMonth()]})
+        </Text>
+
+        <View style={{ marginTop: 10 }}>
+          {weeklyData.map((item, index) => {
+            const isProfit = item.amount >= 0;
+            const barWidthPercent = Math.min((Math.abs(item.amount) / maxWeeklyAbs) * 100, 100);
+
+            return (
+              <View key={index} style={styles.weeklyRow}>
+                <View style={{ width: 75 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: theme.textPrimary }}>{item.label}</Text>
+                  <Text style={{ fontSize: 10, color: theme.textSecondary }}>{item.range}</Text>
+                </View>
+
+                <View style={styles.weeklyTrack}>
+                  <View
+                    style={{
+                      height: '100%',
+                      borderRadius: 5,
+                      width: item.amount === 0 ? '2%' : Math.max(barWidthPercent, 6) + '%',
+                      backgroundColor: isProfit ? theme.profitText : theme.lossText,
+                    }}
+                  />
+                </View>
+
+                <Text style={{ fontSize: 12, fontWeight: '700', width: 65, textAlign: 'right', color: isProfit ? theme.profitText : theme.lossText }}>
+                  {item.amount >= 0 ? '+₹' + item.amount : '-₹' + Math.abs(item.amount)}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* DASHBOARD WIDGET 5: CUMULATIVE EQUITY CURVE */}
+      <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
+        <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>📈 Cumulative Equity Trajectory</Text>
+
+        {cumulativeData.length === 0 ? (
+          <Text style={{ color: theme.textSecondary, textAlign: 'center', padding: 20 }}>
+            No trade data recorded yet to render trajectory curve.
+          </Text>
+        ) : (
+          <View style={styles.chartContainer}>
+            {cumulativeData.map((item, index) => {
+              const isProfit = item.total >= 0;
+              const heightPercent = Math.min((Math.abs(item.total) / maxCumulativeAbs) * 100, 100);
+              const displayTotal = item.total >= 0 ? '+' + item.total : '' + item.total;
+
+              return (
+                <View key={index} style={styles.chartColumn}>
+                  <Text style={[styles.chartValText, { color: isProfit ? theme.profitText : theme.lossText }]}>
+                    {displayTotal}
+                  </Text>
+                  <View style={styles.chartTrack}>
+                    <View style={{ width: '100%', borderRadius: 4, height: Math.max(heightPercent, 10) + '%', backgroundColor: isProfit ? theme.accent : theme.lossText }} />
+                  </View>
+                  <Text style={[styles.chartXLabel, { color: theme.textSecondary }]}>{item.label}</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </View>
+
+      {/* DASHBOARD WIDGET 6: ACCOUNT COMPARISON */}
+      <View style={styles.widgetHeader}>
+        <Text style={[styles.widgetTitle, { color: theme.textPrimary }]}>💼 Account Performance Breakdown</Text>
+      </View>
+
+      <View style={{ gap: 10 }}>
+        {accountData.map((acc) => (
+          <View key={acc.name} style={[styles.accountCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: theme.textPrimary }}>{acc.name}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: acc.net >= 0 ? theme.profitText : theme.lossText }}>
+                {acc.net >= 0 ? '+₹' + acc.net : '-₹' + Math.abs(acc.net)}
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+              <Text style={{ color: theme.profitText, fontSize: 12, fontWeight: '600' }}>Profits: +₹{acc.profits}</Text>
+              <Text style={{ color: theme.lossText, fontSize: 12, fontWeight: '600' }}>Losses: -₹{acc.losses}</Text>
+            </View>
+          </View>
+        ))}
       </View>
     </ScrollView>
   );
@@ -429,14 +711,14 @@ function AnalyticsView({ year, entries = {}, selectedAccount = 'Main Account', a
 function AboutView({ isDarkMode, onToggleTheme, theme }) {
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 30, gap: 12 }}>
-      <View style={[styles.aboutCard, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
+      <View style={[styles.aboutCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={{ fontSize: 40, textAlign: 'center', marginBottom: 8 }}>📈</Text>
         <Text style={{ fontSize: 18, fontWeight: '700', textAlign: 'center', color: theme.textPrimary }}>PnL & Progress Tracker</Text>
         <Text style={{ fontSize: 12, textAlign: 'center', color: theme.textSecondary, marginTop: 2 }}>Version 1.0.0 (Offline Release)</Text>
       </View>
 
       <Text style={{ fontSize: 15, fontWeight: '700', color: theme.textPrimary, marginTop: 8 }}>👨‍💻 Developer Information</Text>
-      <View style={[styles.aboutCard, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
+      <View style={[styles.aboutCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <View style={styles.infoRow}><Text style={{ color: theme.textSecondary }}>Developer</Text><Text style={{ fontWeight: '600', color: theme.textPrimary }}>ItsMeParavai</Text></View>
         <View style={styles.infoRow}><Text style={{ color: theme.textSecondary }}>Engine</Text><Text style={{ fontWeight: '600', color: theme.textPrimary }}>React Native / Expo</Text></View>
         <View style={styles.infoRow}><Text style={{ color: theme.textSecondary }}>Pipeline</Text><Text style={{ fontWeight: '600', color: theme.accent }}>GitHub Actions CI/CD</Text></View>
@@ -454,7 +736,7 @@ function BottomNavBar({ activeTab, onSelectTab, theme }) {
   ];
 
   return (
-    <View style={[styles.bottomNav, { backgroundColor: theme.cardBg, borderTopColor: theme.border }]}>
+    <View style={[styles.bottomNav, { backgroundColor: theme.cardBg, borderTopColor: theme.cardBorder }]}>
       {tabs.map((tab) => {
         const isActive = activeTab === tab.key;
         return (
@@ -663,6 +945,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 14,
     borderRadius: 12,
+    borderWidth: 1,
   },
   cardTitle: {
     fontSize: 12,
@@ -697,6 +980,7 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 10,
     padding: 6,
+    borderWidth: 1,
     justifyContent: 'space-between',
     marginBottom: 4,
   },
@@ -712,10 +996,12 @@ const styles = StyleSheet.create({
     width: '48%',
     padding: 14,
     borderRadius: 12,
+    borderWidth: 1,
   },
   allTimeCard: {
     padding: 20,
     borderRadius: 14,
+    borderWidth: 1,
   },
   halfCard: {
     flex: 1,
@@ -736,14 +1022,14 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justify.content: 'space-around',
     alignItems: 'center',
     paddingVertical: 8,
     borderTopWidth: 1,
   },
   navHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justify.content: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     marginVertical: 8,
@@ -758,7 +1044,7 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justify.content: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     marginBottom: 12,
@@ -768,32 +1054,163 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 8,
   },
-  filterBar: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    padding: 4,
+
+  // --- DASHBOARD STYLES ---
+  dashboardContainer: {
+    padding: 16,
+    paddingBottom: 50,
+  },
+  dashboardHeader: {
+    marginBottom: 12,
+  },
+  dashboardTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  dashboardSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  heroCard: {
+    borderRadius: 14,
+    padding: 16,
     borderWidth: 1,
     marginBottom: 16,
   },
-  filterBtn: {
-    flex: 1,
-    paddingVertical: 6,
-    alignItems: 'center',
-    borderRadius: 8,
+  heroLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
-  sectionTitle: {
-    fontSize: 15,
+  heroValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    marginVertical: 4,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  heroSubItem: {
+    alignItems: 'flex-start',
+  },
+  heroSubLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  heroSubVal: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  widgetHeader: {
+    marginTop: 6,
+    marginBottom: 8,
+  },
+  widgetTitle: {
+    fontSize: 14,
     fontWeight: '700',
   },
-  statCard: {
-    width: '48%',
-    padding: 14,
-    borderRadius: 12,
+  kpiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
   },
-  chartCard: {
+  kpiCard: {
+    width: '48.5%',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  kpiLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  kpiValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginVertical: 2,
+  },
+  kpiSub: {
+    fontSize: 10,
+  },
+  dashboardWidget: {
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
+    marginBottom: 14,
+  },
+  widgetTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  widgetTitleText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  gaugeTrack: {
+    height: 10,
+    borderRadius: 5,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    backgroundColor: '#21262D',
     marginTop: 10,
+  },
+  gaugeFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  chartContainer: {
+    flexDirection: 'row',
+    height: 160,
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  chartColumn: {
+    flex: 1,
+    alignItems: 'center',
+    height: '100%',
+    justifyContent: 'flex-end',
+  },
+  chartValText: {
+    fontSize: 8,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  chartTrack: {
+    width: 12,
+    height: '75%',
+    justifyContent: 'flex-end',
+  },
+  chartXLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 6,
+  },
+  weeklyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  weeklyTrack: {
+    flex: 1,
+    height: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 5,
+    marginHorizontal: 10,
+    justifyContent: 'center',
+  },
+  accountCard: {
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
   },
 });
