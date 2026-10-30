@@ -20,6 +20,10 @@ import AccountModal from './src/components/AccountModal';
 import YearView from './src/components/YearView';
 import AllTimeView from './src/components/AllTimeView';
 
+import BottomNavBar from './src/components/BottomNavBar';
+import AnalyticsView from './src/components/AnalyticsView';
+import AboutView from './src/components/AboutView';
+
 const DEFAULT_THEME = darkTheme || {
   background: '#0A0E12',
   cardBg: '#161B22',
@@ -56,6 +60,7 @@ class ErrorBoundary extends React.Component {
 }
 
 function MainApp() {
+  const [activeNavTab, setActiveNavTab] = useState('Home');
   const [activeTab, setActiveTab] = useState('Month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -129,7 +134,7 @@ function MainApp() {
       let csvContent = 'Date,Account,Type,Amount (INR)\n';
       keys.forEach((dateKey) => {
         const item = entries[dateKey];
-        const amt = parseFloat(item?.amount || 0);
+        const amt = Math.round(parseFloat(item?.amount || 0));
         const type = amt >= 0 ? 'Profit' : 'Loss';
         const accountName = item?.account || 'Main Account';
         csvContent += `"${dateKey}","${accountName}","${type}",${amt}\n`;
@@ -188,7 +193,7 @@ function MainApp() {
           const [dateKey, accountName, type, amountStr] = parts;
 
           if (/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-            let numericVal = parseFloat(amountStr);
+            let numericVal = Math.round(parseFloat(amountStr));
             if (!isNaN(numericVal)) {
               if (type && type.toLowerCase() === 'loss' && numericVal > 0) {
                 numericVal = -numericVal;
@@ -221,102 +226,122 @@ function MainApp() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
-      <ViewTabs activeTab={activeTab} onSelectTab={setActiveTab} theme={theme} />
+      {/* Main Nav Section Routing */}
+      {activeNavTab === 'Home' && (
+        <>
+          <ViewTabs activeTab={activeTab} onSelectTab={setActiveTab} theme={theme} />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
-        {/* Navigation Bar */}
-        <View style={styles.navHeader}>
-          <TouchableOpacity onPress={handlePrevMonth}>
-            <Text style={[styles.arrow, { color: theme.textPrimary }]}>‹</Text>
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
-            {MONTH_NAMES[monthIndex]} {year}
-          </Text>
-          <TouchableOpacity onPress={handleNextMonth}>
-            <Text style={[styles.arrow, { color: theme.textPrimary }]}>›</Text>
-          </TouchableOpacity>
-        </View>
+          <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+            {/* Month Navigation Header */}
+            <View style={styles.navHeader}>
+              <TouchableOpacity onPress={handlePrevMonth}>
+                <Text style={[styles.arrow, { color: theme.textPrimary }]}>‹</Text>
+              </TouchableOpacity>
+              <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
+                {MONTH_NAMES[monthIndex]} {year}
+              </Text>
+              <TouchableOpacity onPress={handleNextMonth}>
+                <Text style={[styles.arrow, { color: theme.textPrimary }]}>›</Text>
+              </TouchableOpacity>
+            </View>
 
-        {/* Summary Header Cards */}
-        <SummaryRow
-          totalPnL={totalPnL}
-          goal={goal}
-          onOpenGoalModal={() => setShowGoalModal(true)}
+            {/* Summary Cards */}
+            <SummaryRow
+              totalPnL={totalPnL}
+              goal={goal}
+              onOpenGoalModal={() => setShowGoalModal(true)}
+              theme={theme}
+            />
+
+            {/* Filter & Action Buttons */}
+            <View style={styles.filterRow}>
+              <TouchableOpacity onPress={() => setHideWeekends(!hideWeekends)}>
+                <Text style={[styles.filterText, { color: theme.textSecondary }]}>
+                  Weekends: <Text style={{ color: theme.textPrimary }}>{hideWeekends ? 'OFF' : 'ON'}</Text>
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => setShowAccountModal(true)}>
+                <Text style={[styles.filterText, { color: theme.accent }]}>
+                  {selectedAccount} ▾
+                </Text>
+              </TouchableOpacity>
+
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                <TouchableOpacity onPress={handleImportFromExcel} style={[styles.exportBtn, { backgroundColor: theme.cardBg }]}>
+                  <Text style={{ color: theme.accent, fontSize: 12, fontWeight: '700' }}>📥 Import</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleExportToExcel} style={[styles.exportBtn, { backgroundColor: theme.cardBg }]}>
+                  <Text style={{ color: theme.accent, fontSize: 12, fontWeight: '700' }}>📊 Excel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Active View Display */}
+            {activeTab === 'Week' && (
+              <WeekView
+                currentDate={currentDate}
+                entries={entries}
+                hideWeekends={hideWeekends}
+                onSelectDate={(key) => setSelectedDateKey(key)}
+                theme={theme}
+              />
+            )}
+
+            {activeTab === 'Month' && (
+              <CalendarGrid
+                year={year}
+                monthIndex={monthIndex}
+                entries={entries}
+                hideWeekends={hideWeekends}
+                onSelectDate={(key) => setSelectedDateKey(key)}
+                theme={theme}
+              />
+            )}
+
+            {activeTab === 'Year' && (
+              <YearView
+                year={year}
+                entries={entries}
+                selectedAccount={selectedAccount}
+                theme={theme}
+              />
+            )}
+
+            {activeTab === 'All time' && (
+              <AllTimeView entries={entries} theme={theme} />
+            )}
+          </ScrollView>
+        </>
+      )}
+
+      {activeNavTab === 'Analytics' && (
+        <AnalyticsView
+          year={year}
+          entries={entries}
+          selectedAccount={selectedAccount}
           theme={theme}
         />
+      )}
 
-        {/* Filters & Actions */}
-        <View style={styles.filterRow}>
-          <TouchableOpacity onPress={() => setHideWeekends(!hideWeekends)}>
-            <Text style={[styles.filterText, { color: theme.textSecondary }]}>
-              Weekends: <Text style={{ color: theme.textPrimary }}>{hideWeekends ? 'OFF' : 'ON'}</Text>
-            </Text>
-          </TouchableOpacity>
+      {activeNavTab === 'About' && (
+        <AboutView
+          isDarkMode={isDarkMode}
+          onToggleTheme={() => {
+            const nextMode = !isDarkMode;
+            setIsDarkMode(nextMode);
+            saveThemeMode(nextMode);
+          }}
+          theme={theme}
+        />
+      )}
 
-          <TouchableOpacity onPress={() => setShowAccountModal(true)}>
-            <Text style={[styles.filterText, { color: theme.accent }]}>
-              {selectedAccount} ▾
-            </Text>
-          </TouchableOpacity>
-
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            <TouchableOpacity onPress={handleImportFromExcel} style={[styles.exportBtn, { backgroundColor: theme.cardBg }]}>
-              <Text style={{ color: theme.accent, fontSize: 12, fontWeight: '700' }}>📥 Import</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleExportToExcel} style={[styles.exportBtn, { backgroundColor: theme.cardBg }]}>
-              <Text style={{ color: theme.accent, fontSize: 12, fontWeight: '700' }}>📊 Excel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Dynamic Main View */}
-        {activeTab === 'Week' && (
-          <WeekView
-            currentDate={currentDate}
-            entries={entries}
-            hideWeekends={hideWeekends}
-            onSelectDate={(key) => setSelectedDateKey(key)}
-            theme={theme}
-          />
-        )}
-
-        {activeTab === 'Month' && (
-          <CalendarGrid
-            year={year}
-            monthIndex={monthIndex}
-            entries={entries}
-            hideWeekends={hideWeekends}
-            onSelectDate={(key) => setSelectedDateKey(key)}
-            theme={theme}
-          />
-        )}
-
-        {activeTab === 'Year' && (
-          <YearView
-            year={year}
-            entries={entries}
-            selectedAccount={selectedAccount}
-            theme={theme}
-          />
-        )}
-
-        {activeTab === 'All time' && (
-          <AllTimeView entries={entries} theme={theme} />
-        )}
-      </ScrollView>
-
-      {/* Theme Toggle Floating Bar */}
-      <View style={[styles.bottomBar, { backgroundColor: theme.cardBg, borderTopColor: theme.border }]}>
-        <TouchableOpacity onPress={() => {
-          const newTheme = !isDarkMode;
-          setIsDarkMode(newTheme);
-          saveThemeMode(newTheme);
-        }}>
-          <Text style={{ color: theme.textPrimary, fontWeight: '600' }}>
-            Theme: {isDarkMode ? '🌙 Dark' : '☀️ Light'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* Bottom Main Tab Navigation */}
+      <BottomNavBar
+        activeTab={activeNavTab}
+        onSelectTab={setActiveNavTab}
+        theme={theme}
+      />
 
       {/* Entry Input Modal */}
       <EntryModal
@@ -400,10 +425,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 8,
-  },
-  bottomBar: {
-    padding: 14,
-    alignItems: 'center',
-    borderTopWidth: 1,
   },
 });
