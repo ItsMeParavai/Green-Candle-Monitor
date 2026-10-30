@@ -10,6 +10,7 @@ import {
   Platform,
   TextInput,
   Modal,
+  Linking,
   StatusBar as RNStatusBar,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -755,21 +756,56 @@ function AnalyticsView({ year, entries, currentDate, theme }) {
   );
 }
 
-function AboutView({ isDarkMode, onToggleTheme, theme }) {
+function AboutView({ theme }) {
+  const openGithub = () => {
+    Linking.openURL('https://github.com/ItsMeParavai/Green-Candle-Monitor').catch((err) =>
+      console.error('Failed opening link:', err)
+    );
+  };
+
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 30, gap: 12 }}>
       <View style={[styles.aboutCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
-        <Text style={{ fontSize: 40, textAlign: 'center', marginBottom: 8 }}>📈</Text>
-        <Text style={{ fontSize: 18, fontWeight: '700', textAlign: 'center', color: theme.textPrimary }}>PnL & Progress Tracker</Text>
-        <Text style={{ fontSize: 12, textAlign: 'center', color: theme.textSecondary, marginTop: 2 }}>Version 1.0.0 (Offline Release)</Text>
+        <Text style={{ fontSize: 42, textAlign: 'center', marginBottom: 8 }}>🕯️</Text>
+        <Text style={{ fontSize: 20, fontWeight: '800', textAlign: 'center', color: theme.textPrimary }}>
+          Green Candle Monitor
+        </Text>
+        <Text style={{ fontSize: 13, fontWeight: '600', textAlign: 'center', color: theme.profitText, marginTop: 4 }}>
+          Precision P&L & Performance Analytics Journal
+        </Text>
+        <Text style={{ fontSize: 11, textAlign: 'center', color: theme.textSecondary, marginTop: 6 }}>
+          Version 1.0.0 (Production Release)
+        </Text>
       </View>
 
-      <Text style={{ fontSize: 15, fontWeight: '700', color: theme.textPrimary, marginTop: 8 }}>👨‍💻 Developer Information</Text>
+      <Text style={{ fontSize: 15, fontWeight: '700', color: theme.textPrimary, marginTop: 8 }}>
+        👨‍💻 Developer & Application Info
+      </Text>
       <View style={[styles.aboutCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
-        <View style={styles.infoRow}><Text style={{ color: theme.textSecondary }}>Developer</Text><Text style={{ fontWeight: '600', color: theme.textPrimary }}>ItsMeParavai</Text></View>
-        <View style={styles.infoRow}><Text style={{ color: theme.textSecondary }}>Engine</Text><Text style={{ fontWeight: '600', color: theme.textPrimary }}>React Native / Expo</Text></View>
-        <View style={styles.infoRow}><Text style={{ color: theme.textSecondary }}>Pipeline</Text><Text style={{ fontWeight: '600', color: theme.accent }}>GitHub Actions CI/CD</Text></View>
-        <View style={styles.infoRow}><Text style={{ color: theme.textSecondary }}>Privacy</Text><Text style={{ fontWeight: '600', color: theme.profitText }}>100% Offline & Local</Text></View>
+        <View style={styles.infoRow}>
+          <Text style={{ color: theme.textSecondary }}>Developer</Text>
+          <Text style={{ fontWeight: '600', color: theme.textPrimary }}>Neelakandan N</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={{ color: theme.textSecondary }}>Repository</Text>
+          <TouchableOpacity onPress={openGithub}>
+            <Text style={{ fontWeight: '600', color: theme.accent, textDecorationLine: 'underline' }}>
+              GitHub Repo ↗
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={{ color: theme.textSecondary }}>Engine</Text>
+          <Text style={{ fontWeight: '600', color: theme.textPrimary }}>React Native / Expo</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={{ color: theme.textSecondary }}>Pipeline</Text>
+          <Text style={{ fontWeight: '600', color: theme.accent }}>GitHub Actions CI/CD</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={{ color: theme.textSecondary }}>Data Privacy</Text>
+          <Text style={{ fontWeight: '600', color: theme.profitText }}>100% Offline & Local Storage</Text>
+        </View>
       </View>
     </ScrollView>
   );
@@ -965,11 +1001,7 @@ function MainApp() {
       )}
 
       {activeNavTab === 'About' && (
-        <AboutView
-          isDarkMode={isDarkMode}
-          onToggleTheme={() => setIsDarkMode(!isDarkMode)}
-          theme={theme}
-        />
+        <AboutView theme={theme} />
       )}
 
       <BottomNavBar activeTab={activeNavTab} onSelectTab={setActiveNavTab} theme={theme} />
