@@ -1156,7 +1156,7 @@ const styles = StyleSheet.create({
   },
   goalHeader: {
     flexDirection: 'row',
-    justify.content: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
@@ -1172,19 +1172,19 @@ const styles = StyleSheet.create({
   },
   goalFooter: {
     flexDirection: 'row',
-    justify.content: 'space-between',
+    justifyContent: 'space-between',
   },
   gridCard: {
     height: 60,
     borderRadius: 10,
     padding: 6,
     borderWidth: 1,
-    justify.content: 'space-between',
+    justifyContent: 'space-between',
     marginBottom: 4,
   },
   weekRowCard: {
     flexDirection: 'row',
-    justify.content: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
     padding: 14,
     borderRadius: 12,
@@ -1213,14 +1213,14 @@ const styles = StyleSheet.create({
   },
   infoRow: {
     flexDirection: 'row',
-    justify.content: 'space-between',
+    justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   bottomNav: {
     flexDirection: 'row',
-    justify.style || 'space-around',
+    justifyContent: 'space-around',
     alignItems: 'center',
     paddingVertical: 8,
     borderTopWidth: 1,
@@ -1242,7 +1242,7 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
-    justify.content: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     marginBottom: 12,
@@ -1282,7 +1282,7 @@ const styles = StyleSheet.create({
   },
   modalBtnRow: {
     flexDirection: 'row',
-    justify.content: 'flex-end',
+    justifyContent: 'flex-end',
     gap: 10,
   },
   modalBtn: {
@@ -1330,7 +1330,7 @@ const styles = StyleSheet.create({
   },
   heroRow: {
     flexDirection: 'row',
-    justify.content: 'space-between',
+    justifyContent: 'space-between',
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 0.5,
@@ -1388,7 +1388,7 @@ const styles = StyleSheet.create({
   },
   widgetTopRow: {
     flexDirection: 'row',
-    justify.content: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
   widgetTitleText: {
@@ -1405,21 +1405,21 @@ const styles = StyleSheet.create({
   },
   gaugeFooterRow: {
     flexDirection: 'row',
-    justify.content: 'space-between',
+    justifyContent: 'space-between',
     marginTop: 8,
   },
   chartContainer: {
     flexDirection: 'row',
     height: 160,
     alignItems: 'flex-end',
-    justify.content: 'space-between',
+    justifyContent: 'space-between',
     marginTop: 10,
   },
   chartColumn: {
     flex: 1,
     alignItems: 'center',
     height: '100%',
-    justify.content: 'flex-end',
+    justifyContent: 'flex-end',
   },
   chartValText: {
     fontSize: 8,
@@ -1429,7 +1429,7 @@ const styles = StyleSheet.create({
   chartTrack: {
     width: 12,
     height: '75%',
-    justify.content: 'flex-end',
+    justifyContent: 'flex-end',
   },
   chartXLabel: {
     fontSize: 10,
@@ -1447,7 +1447,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 5,
     marginHorizontal: 10,
-    justify.content: 'center',
+    justifyContent: 'center',
   },
   accountCard: {
     borderRadius: 12,
