@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { formatDateKey } from '../dateUtils';
 
-export default function WeekView({ currentDate, entries, hideWeekends, onSelectDate, theme }) {
+export default function WeekView({ currentDate, entries, onSelectDate, theme }) {
   const tempDate = new Date(currentDate);
   const dayOfWeek = tempDate.getDay();
   const distanceToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
@@ -11,10 +11,9 @@ export default function WeekView({ currentDate, entries, hideWeekends, onSelectD
   monday.setDate(tempDate.getDate() + distanceToMon);
 
   const days = [];
-  const totalDays = hideWeekends ? 5 : 7;
-  const dayLabels = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  const dayLabels = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
 
-  for (let i = 0; i < totalDays; i++) {
+  for (let i = 0; i < 5; i++) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
     const y = d.getFullYear();
