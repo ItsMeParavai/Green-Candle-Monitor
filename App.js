@@ -1429,7 +1429,7 @@ const styles = StyleSheet.create({
   chartTrack: {
     width: 12,
     height: '75%',
-    justifyContent: 'flex-end',
+    justify.content: 'flex-end',
   },
   chartXLabel: {
     fontSize: 10,
