@@ -28,17 +28,10 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install
 
-      - name: Ensure index.js entrypoint exists
-        run: |
-          node -e "
-          const fs = require('fs');
-          fs.writeFileSync('index.js', \"import { registerRootComponent } from 'expo';\nimport App from './App';\nregisterRootComponent(App);\n\");
-          "
-
-      - name: Generate Android project
+      - name: Generate Android native project
         run: npx expo prebuild --platform android --clean
 
-      - name: Configure Debug Signing & Offline Bundle
+      - name: Configure Debug Signing
         run: |
           node -e "
           const fs = require('fs');
