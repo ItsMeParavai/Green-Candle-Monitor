@@ -55,8 +55,6 @@ const MONTH_NAMES = [
 const STORAGE_KEYS = {
   ENTRIES: '@pnl_entries',
   GOAL: '@pnl_goal',
-  ACCOUNTS: '@pnl_accounts',
-  SELECTED_ACCOUNT: '@pnl_selected_account',
   THEME_MODE: '@pnl_theme_mode',
 };
 
@@ -67,10 +65,9 @@ function formatDateKey(year, monthIndex, day) {
   return year + '-' + m + '-' + d;
 }
 
-function calculateMonthlyPnL(entries, year, monthIndex, selectedAccount) {
+function calculateMonthlyPnL(entries, year, monthIndex) {
   let total = 0;
   if (!entries || typeof entries !== 'object') return 0;
-  const targetAcc = selectedAccount || 'Main Account';
 
   Object.keys(entries).forEach((dateKey) => {
     const parts = dateKey.split('-').map(Number);
@@ -87,10 +84,7 @@ function calculateMonthlyPnL(entries, year, monthIndex, selectedAccount) {
         const entry = entries[dateKey];
         if (entry) {
           const amt = typeof entry === 'object' ? parseFloat(entry.amount || 0) : parseFloat(entry || 0);
-          const acc = typeof entry === 'object' ? (entry.account || 'Main Account') : 'Main Account';
-          if (targetAcc === 'All' || acc === targetAcc) {
-            if (!isNaN(amt)) total += amt;
-          }
+          if (!isNaN(amt)) total += amt;
         }
       }
     }
@@ -222,38 +216,6 @@ function GoalModal({ visible, currentGoal, onSave, onClose, theme }) {
   );
 }
 
-function AccountModal({ visible, accounts, selectedAccount, onSelect, onClose, theme }) {
-  if (!visible) return null;
-
-  return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
-          <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>Select Trading Account</Text>
-          {accounts.map((acc) => (
-            <TouchableOpacity
-              key={acc}
-              style={[
-                styles.accOptionBtn,
-                { backgroundColor: selectedAccount === acc ? theme.accent : theme.background }
-              ]}
-              onPress={() => {
-                onSelect(acc);
-                onClose();
-              }}
-            >
-              <Text style={{ color: selectedAccount === acc ? '#FFF' : theme.textPrimary, fontWeight: '700' }}>{acc}</Text>
-            </TouchableOpacity>
-          ))}
-          <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.cardBorder, marginTop: 10 }]} onPress={onClose}>
-            <Text style={{ color: theme.textSecondary, fontWeight: '600', textAlign: 'center' }}>Close</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
 // --- SUB VIEWS ---
 function ViewTabs({ activeTab, onSelectTab, theme }) {
   const tabs = ['Week', 'Month', 'Year', 'All time'];
@@ -352,7 +314,7 @@ function CalendarGrid({ year, monthIndex, entries, onSelectDate, theme }) {
 
           const dateKey = formatDateKey(year, monthIndex, day);
           const entry = entries[dateKey];
-          const rawAmount = entry ? parseFloat(entry.amount) : null;
+          const rawAmount = entry ? (typeof entry === 'object' ? parseFloat(entry.amount) : parseFloat(entry)) : null;
           const amount = rawAmount !== null && !isNaN(rawAmount) ? Math.round(rawAmount) : null;
 
           let cardBg = theme.cardBg;
@@ -397,7 +359,7 @@ function WeekView({ currentDate, entries, onSelectDate, theme }) {
     d.setDate(monday.getDate() + i);
     const dateKey = formatDateKey(d.getFullYear(), d.getMonth(), d.getDate());
     const entry = entries[dateKey];
-    const rawAmount = entry ? parseFloat(entry.amount) : null;
+    const rawAmount = entry ? (typeof entry === 'object' ? parseFloat(entry.amount) : parseFloat(entry)) : null;
     const amount = rawAmount !== null && !isNaN(rawAmount) ? Math.round(rawAmount) : null;
 
     days.push({ label: dayLabels[i], dateNum: d.getDate(), dateKey, amount });
@@ -433,11 +395,11 @@ function WeekView({ currentDate, entries, onSelectDate, theme }) {
   );
 }
 
-function YearView({ year, entries, selectedAccount, theme }) {
+function YearView({ year, entries, theme }) {
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 8 }}>
       {MONTH_NAMES.map((name, index) => {
-        const pnl = calculateMonthlyPnL(entries, year, index, selectedAccount);
+        const pnl = calculateMonthlyPnL(entries, year, index);
         return (
           <View key={name} style={[styles.yearMonthCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
             <Text style={{ fontSize: 13, fontWeight: '600', color: theme.textSecondary, marginBottom: 6 }}>{name}</Text>
@@ -456,9 +418,11 @@ function AllTimeView({ entries, theme }) {
   let totalLoss = 0;
 
   Object.values(entries || {}).forEach((entry) => {
-    const val = parseFloat(entry && entry.amount ? entry.amount : 0);
-    if (val > 0) totalProfit += val;
-    if (val < 0) totalLoss += Math.abs(val);
+    const val = parseFloat(entry && typeof entry === 'object' ? entry.amount : entry);
+    if (!isNaN(val)) {
+      if (val > 0) totalProfit += val;
+      if (val < 0) totalLoss += Math.abs(val);
+    }
   });
 
   const netPnL = Math.round(totalProfit - totalLoss);
@@ -489,13 +453,11 @@ function AllTimeView({ entries, theme }) {
 }
 
 // --- TRADER DASHBOARD ANALYTICS ---
-function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, theme }) {
+function AnalyticsView({ year, entries, currentDate, theme }) {
   const safeEntries = entries || {};
-  const targetAcc = selectedAccount || 'Main Account';
-  const safeAccounts = accounts || ['Main Account', 'Trading'];
 
   const monthlyData = MONTH_NAMES.map((monthName, idx) => {
-    const rawVal = calculateMonthlyPnL(safeEntries, year, idx, targetAcc);
+    const rawVal = calculateMonthlyPnL(safeEntries, year, idx);
     return { month: monthName.slice(0, 3), amount: Math.round(rawVal || 0) };
   });
   const maxMonthlyAbs = Math.max(...monthlyData.map((d) => Math.abs(d.amount)), 1);
@@ -526,11 +488,8 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
           const key = formatDateKey(y, m, dateNum);
           const entry = safeEntries[key];
           if (entry) {
-            const acc = entry.account || 'Main Account';
-            if (targetAcc === 'All' || acc === targetAcc) {
-              const amt = Math.round(parseFloat(entry.amount || 0));
-              if (!isNaN(amt)) weekTotal += amt;
-            }
+            const amt = Math.round(typeof entry === 'object' ? parseFloat(entry.amount || 0) : parseFloat(entry || 0));
+            if (!isNaN(amt)) weekTotal += amt;
           }
         }
         d.setDate(d.getDate() + 1);
@@ -567,17 +526,14 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
         const dateObj = new Date(y, m - 1, d);
         if (dateObj.getDay() !== 0 && dateObj.getDay() !== 6) {
           const entry = safeEntries[key];
-          const acc = entry && entry.account ? entry.account : 'Main Account';
-          if (targetAcc === 'All' || acc === targetAcc) {
-            const amt = Math.round(parseFloat(entry && entry.amount ? entry.amount : 0));
-            if (!isNaN(amt)) {
-              runningTotal += amt;
-              curve.push({
-                dateKey: key,
-                label: d + '/' + m,
-                total: runningTotal,
-              });
-            }
+          const amt = Math.round(typeof entry === 'object' ? parseFloat(entry.amount || 0) : parseFloat(entry || 0));
+          if (!isNaN(amt)) {
+            runningTotal += amt;
+            curve.push({
+              dateKey: key,
+              label: d + '/' + m,
+              total: runningTotal,
+            });
           }
         }
       }
@@ -593,26 +549,6 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
   const cumulativeData = getCumulativeData();
   const maxCumulativeAbs = Math.max(...cumulativeData.map((c) => Math.abs(c.total)), 1);
 
-  const accountData = safeAccounts.map((accName) => {
-    let accTotal = 0;
-    let accProfits = 0;
-    let accLosses = 0;
-
-    Object.values(safeEntries).forEach((entry) => {
-      const acc = entry && entry.account ? entry.account : 'Main Account';
-      if (acc === accName) {
-        const amt = Math.round(parseFloat(entry && entry.amount ? entry.amount : 0));
-        if (!isNaN(amt)) {
-          accTotal += amt;
-          if (amt > 0) accProfits += amt;
-          if (amt < 0) accLosses += Math.abs(amt);
-        }
-      }
-    });
-
-    return { name: accName, net: accTotal, profits: accProfits, losses: accLosses };
-  });
-
   let profitDays = 0;
   let lossDays = 0;
   let totalProfitSum = 0;
@@ -621,18 +557,15 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
   let maxSingleLoss = 0;
 
   Object.values(safeEntries).forEach((entry) => {
-    const acc = entry && entry.account ? entry.account : 'Main Account';
-    if (targetAcc === 'All' || acc === targetAcc) {
-      const val = Math.round(parseFloat(entry && entry.amount ? entry.amount : 0));
-      if (val > 0) {
-        profitDays++;
-        totalProfitSum += val;
-        if (val > maxSingleProfit) maxSingleProfit = val;
-      } else if (val < 0) {
-        lossDays++;
-        totalLossSum += Math.abs(val);
-        if (Math.abs(val) > maxSingleLoss) maxSingleLoss = Math.abs(val);
-      }
+    const val = Math.round(typeof entry === 'object' ? parseFloat(entry.amount || 0) : parseFloat(entry || 0));
+    if (val > 0) {
+      profitDays++;
+      totalProfitSum += val;
+      if (val > maxSingleProfit) maxSingleProfit = val;
+    } else if (val < 0) {
+      lossDays++;
+      totalLossSum += Math.abs(val);
+      if (Math.abs(val) > maxSingleLoss) maxSingleLoss = Math.abs(val);
     }
   });
 
@@ -647,11 +580,9 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
     <ScrollView contentContainerStyle={styles.dashboardContainer}>
       <View style={styles.dashboardHeader}>
         <Text style={[styles.dashboardTitle, { color: theme.textPrimary }]}>📊 Performance Dashboard</Text>
-        <Text style={[styles.dashboardSub, { color: theme.textSecondary }]}>
-          Account: <Text style={{ color: theme.accent, fontWeight: '700' }}>{targetAcc}</Text>
-        </Text>
       </View>
 
+      {/* HERO NET REALIZED P&L */}
       <View style={[styles.heroCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>NET REALIZED P&L</Text>
         <Text style={[styles.heroValue, { color: netTotalPnL >= 0 ? theme.profitText : theme.lossText }]}>
@@ -676,6 +607,7 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
         </View>
       </View>
 
+      {/* KPI GRID */}
       <View style={styles.widgetHeader}>
         <Text style={[styles.widgetTitle, { color: theme.textPrimary }]}>⚡ Key Performance Indicators</Text>
       </View>
@@ -706,6 +638,7 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
         </View>
       </View>
 
+      {/* WIN/LOSS GAUGE */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <View style={styles.widgetTopRow}>
           <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>🎯 Session Ratio</Text>
@@ -723,6 +656,7 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
         </View>
       </View>
 
+      {/* MONTHLY P&L BAR CHART */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>📅 Monthly P&L Trend ({year})</Text>
 
@@ -749,6 +683,7 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
         </View>
       </View>
 
+      {/* WEEKLY BREAKDOWN */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>
           📆 Weekly Breakdown ({MONTH_NAMES[currentDate ? currentDate.getMonth() : 0]})
@@ -786,6 +721,7 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
         </View>
       </View>
 
+      {/* CUMULATIVE EQUITY CURVE */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>📈 Cumulative Equity Trajectory</Text>
 
@@ -814,28 +750,6 @@ function AnalyticsView({ year, entries, selectedAccount, accounts, currentDate, 
             })}
           </View>
         )}
-      </View>
-
-      <View style={styles.widgetHeader}>
-        <Text style={[styles.widgetTitle, { color: theme.textPrimary }]}>💼 Account Performance Breakdown</Text>
-      </View>
-
-      <View style={{ gap: 10 }}>
-        {accountData.map((acc) => (
-          <View key={acc.name} style={[styles.accountCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: theme.textPrimary }}>{acc.name}</Text>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: acc.net >= 0 ? theme.profitText : theme.lossText }}>
-                {acc.net >= 0 ? '+₹' + acc.net : '-₹' + Math.abs(acc.net)}
-              </Text>
-            </View>
-
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-              <Text style={{ color: theme.profitText, fontSize: 12, fontWeight: '600' }}>Profits: +₹{acc.profits}</Text>
-              <Text style={{ color: theme.lossText, fontSize: 12, fontWeight: '600' }}>Losses: -₹{acc.losses}</Text>
-            </View>
-          </View>
-        ))}
       </View>
     </ScrollView>
   );
@@ -885,6 +799,7 @@ function BottomNavBar({ activeTab, onSelectTab, theme }) {
   );
 }
 
+// --- MAIN APP ---
 function MainApp() {
   const [activeNavTab, setActiveNavTab] = useState('Home');
   const [activeTab, setActiveTab] = useState('Month');
@@ -893,12 +808,9 @@ function MainApp() {
 
   const [entries, setEntries] = useState({});
   const [goal, setGoal] = useState(100);
-  const [accounts, setAccounts] = useState(['Main Account', 'Trading']);
-  const [selectedAccount, setSelectedAccount] = useState('Main Account');
 
   const [selectedDateKey, setSelectedDateKey] = useState(null);
   const [showGoalModal, setShowGoalModal] = useState(false);
-  const [showAccountModal, setShowAccountModal] = useState(false);
 
   const theme = isDarkMode ? darkTheme : lightTheme;
 
@@ -922,7 +834,7 @@ function MainApp() {
   const monthIndex = currentDate.getMonth();
 
   const handleSaveEntry = async (dateKey, amount) => {
-    const updated = { ...entries, [dateKey]: { amount, account: selectedAccount } };
+    const updated = { ...entries, [dateKey]: { amount } };
     setEntries(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.ENTRIES, JSON.stringify(updated));
     setSelectedDateKey(null);
@@ -944,11 +856,11 @@ function MainApp() {
         return;
       }
 
-      let csvContent = 'Date,Account,Type,Amount (INR)\n';
+      let csvContent = 'Date,Type,Amount (INR)\n';
       keys.forEach((key) => {
         const item = entries[key];
-        const amt = Math.round(parseFloat(item && item.amount ? item.amount : 0));
-        csvContent += '"' + key + '","' + (item && item.account ? item.account : 'Main Account') + '","' + (amt >= 0 ? 'Profit' : 'Loss') + '",' + amt + '\n';
+        const amt = Math.round(typeof item === 'object' ? parseFloat(item.amount || 0) : parseFloat(item || 0));
+        csvContent += '"' + key + '","' + (amt >= 0 ? 'Profit' : 'Loss') + '",' + amt + '\n';
       });
 
       const fileUri = FileSystem.documentDirectory + 'pnl_report.csv';
@@ -976,11 +888,13 @@ function MainApp() {
         const line = lines[i].trim();
         if (!line) continue;
         const parts = line.split(',').map((p) => p.replace(/^"|"$/g, '').trim());
-        if (parts.length >= 4 && /^\d{4}-\d{2}-\d{2}$/.test(parts[0])) {
-          let val = Math.round(parseFloat(parts[3]));
+        if (parts.length >= 3 && /^\d{4}-\d{2}-\d{2}$/.test(parts[0])) {
+          let valStr = parts.length >= 4 ? parts[3] : parts[2];
+          let typeStr = parts.length >= 4 ? parts[2] : parts[1];
+          let val = Math.round(parseFloat(valStr));
           if (!isNaN(val)) {
-            if (parts[2].toLowerCase() === 'loss' && val > 0) val = -val;
-            updated[parts[0]] = { amount: val, account: parts[1] || selectedAccount };
+            if (typeStr && typeStr.toLowerCase() === 'loss' && val > 0) val = -val;
+            updated[parts[0]] = { amount: val };
             count++;
           }
         }
@@ -996,7 +910,7 @@ function MainApp() {
     }
   };
 
-  const totalPnL = calculateMonthlyPnL(entries, year, monthIndex, selectedAccount);
+  const totalPnL = calculateMonthlyPnL(entries, year, monthIndex);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -1022,9 +936,7 @@ function MainApp() {
             <SummaryRow totalPnL={totalPnL} goal={goal} onOpenGoalModal={() => setShowGoalModal(true)} theme={theme} />
 
             <View style={styles.filterRow}>
-              <TouchableOpacity onPress={() => setShowAccountModal(true)}>
-                <Text style={{ color: theme.accent, fontSize: 13, fontWeight: '600' }}>{selectedAccount} ▾</Text>
-              </TouchableOpacity>
+              <View style={{ flex: 1 }} />
               <View style={{ flexDirection: 'row', gap: 6 }}>
                 <TouchableOpacity onPress={handleImportFromExcel} style={[styles.exportBtn, { backgroundColor: theme.cardBg }]}>
                   <Text style={{ color: theme.accent, fontSize: 12, fontWeight: '700' }}>📥 Import</Text>
@@ -1037,7 +949,7 @@ function MainApp() {
 
             {activeTab === 'Week' && <WeekView currentDate={currentDate} entries={entries} onSelectDate={(k) => setSelectedDateKey(k)} theme={theme} />}
             {activeTab === 'Month' && <CalendarGrid year={year} monthIndex={monthIndex} entries={entries} onSelectDate={(k) => setSelectedDateKey(k)} theme={theme} />}
-            {activeTab === 'Year' && <YearView year={year} entries={entries} selectedAccount={selectedAccount} theme={theme} />}
+            {activeTab === 'Year' && <YearView year={year} entries={entries} theme={theme} />}
             {activeTab === 'All time' && <AllTimeView entries={entries} theme={theme} />}
           </ScrollView>
         </>
@@ -1047,8 +959,6 @@ function MainApp() {
         <AnalyticsView
           year={year}
           entries={entries}
-          selectedAccount={selectedAccount}
-          accounts={accounts}
           currentDate={currentDate}
           theme={theme}
         />
@@ -1082,15 +992,6 @@ function MainApp() {
           await AsyncStorage.setItem(STORAGE_KEYS.GOAL, JSON.stringify(g));
         }}
         onClose={() => setShowGoalModal(false)}
-        theme={theme}
-      />
-
-      <AccountModal
-        visible={showAccountModal}
-        accounts={accounts}
-        selectedAccount={selectedAccount}
-        onSelect={(acc) => setSelectedAccount(acc)}
-        onClose={() => setShowAccountModal(false)}
         theme={theme}
       />
     </SafeAreaView>
@@ -1282,11 +1183,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
   },
-  accOptionBtn: {
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 8,
-  },
 
   // DASHBOARD STYLES
   dashboardContainer: {
@@ -1440,10 +1336,5 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginHorizontal: 10,
     justifyContent: 'center',
-  },
-  accountCard: {
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
   },
 });
