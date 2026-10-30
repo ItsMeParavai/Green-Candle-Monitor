@@ -64,7 +64,6 @@ function MainApp() {
   const [activeTab, setActiveTab] = useState('Month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [hideWeekends, setHideWeekends] = useState(false);
 
   const [entries, setEntries] = useState({});
   const [goal, setGoal] = useState(100);
@@ -220,13 +219,12 @@ function MainApp() {
     }
   };
 
-  const totalPnL = calculateMonthlyPnL(entries, year, monthIndex, selectedAccount, hideWeekends);
+  const totalPnL = calculateMonthlyPnL(entries, year, monthIndex, selectedAccount);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
-      {/* Main Nav Section Routing */}
       {activeNavTab === 'Home' && (
         <>
           <ViewTabs activeTab={activeTab} onSelectTab={setActiveTab} theme={theme} />
@@ -253,14 +251,8 @@ function MainApp() {
               theme={theme}
             />
 
-            {/* Filter & Action Buttons */}
+            {/* Account & Action Buttons */}
             <View style={styles.filterRow}>
-              <TouchableOpacity onPress={() => setHideWeekends(!hideWeekends)}>
-                <Text style={[styles.filterText, { color: theme.textSecondary }]}>
-                  Weekends: <Text style={{ color: theme.textPrimary }}>{hideWeekends ? 'OFF' : 'ON'}</Text>
-                </Text>
-              </TouchableOpacity>
-
               <TouchableOpacity onPress={() => setShowAccountModal(true)}>
                 <Text style={[styles.filterText, { color: theme.accent }]}>
                   {selectedAccount} ▾
@@ -282,7 +274,6 @@ function MainApp() {
               <WeekView
                 currentDate={currentDate}
                 entries={entries}
-                hideWeekends={hideWeekends}
                 onSelectDate={(key) => setSelectedDateKey(key)}
                 theme={theme}
               />
@@ -293,7 +284,6 @@ function MainApp() {
                 year={year}
                 monthIndex={monthIndex}
                 entries={entries}
-                hideWeekends={hideWeekends}
                 onSelectDate={(key) => setSelectedDateKey(key)}
                 theme={theme}
               />
