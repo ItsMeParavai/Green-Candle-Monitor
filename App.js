@@ -8,6 +8,8 @@ import {
   ScrollView,
   Alert,
   Platform,
+  TextInput,
+  Modal,
   StatusBar as RNStatusBar,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -16,7 +18,7 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// --- THEME DEFINITIONS ---
+// --- THEMES ---
 const darkTheme = {
   background: '#0D1117',
   cardBg: '#161B22',
@@ -76,7 +78,7 @@ function calculateMonthlyPnL(entries = {}, year, monthIndex, selectedAccount = '
       if (y === year && m === monthIndex + 1) {
         const dateObj = new Date(y, m - 1, d);
         const dayOfWeek = dateObj.getDay();
-        if (dayOfWeek === 0 || dayOfWeek === 6) return; // Skip Weekends
+        if (dayOfWeek === 0 || dayOfWeek === 6) return;
 
         const entry = entries[dateKey];
         if (entry) {
@@ -106,7 +108,7 @@ class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <SafeAreaView style={{ flex: 1, backgroundColor: '#0D1117', justifyContent: 'center', padding: 20 }}>
-          <Text style={{ color: '#F85149', fontSize: 20, fontWeight: '700', marginBottom: 10 }}>Dashboard Runtime Error</Text>
+          <Text style={{ color: '#F85149', fontSize: 20, fontWeight: '700', marginBottom: 10 }}>App Error</Text>
           <Text style={{ color: '#FFF', fontSize: 14 }}>{this.state.error?.toString()}</Text>
         </SafeAreaView>
       );
@@ -115,7 +117,139 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// --- SUB-COMPONENTS ---
+// --- MODALS ---
+function EntryModal({ visible, dateKey, initialEntry, onSave, onDelete, onClose, theme }) {
+  const [amount, setAmount] = useState('');
+
+  useEffect(() => {
+    if (initialEntry) {
+      const val = typeof initialEntry === 'object' ? initialEntry.amount : initialEntry;
+      setAmount(val ? String(val) : '');
+    } else {
+      setAmount('');
+    }
+  }, [initialEntry, visible]);
+
+  if (!visible) return null;
+
+  const handleSave = () => {
+    const numeric = parseFloat(amount);
+    if (isNaN(numeric)) {
+      Alert.alert('Invalid Entry', 'Please enter a valid numeric amount.');
+      return;
+    }
+    onSave(dateKey, numeric);
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>
+            Log P&L ({dateKey})
+          </Text>
+
+          <TextInput
+            style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
+            placeholder="Enter P&L Amount (e.g. 500 or -300)"
+            placeholderTextColor={theme.textSecondary}
+            keyboardType="numeric"
+            value={amount}
+            onChangeText={setAmount}
+            autoFocus
+          />
+
+          <View style={styles.modalBtnRow}>
+            {initialEntry && (
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.lossBg }]} onPress={() => onDelete(dateKey)}>
+                <Text style={{ color: theme.lossText, fontWeight: '700' }}>Delete</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.cardBorder }]} onPress={onClose}>
+              <Text style={{ color: theme.textSecondary, fontWeight: '600' }}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.accent }]} onPress={handleSave}>
+              <Text style={{ color: '#FFF', fontWeight: '700' }}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function GoalModal({ visible, currentGoal, onSave, onClose, theme }) {
+  const [goalVal, setGoalVal] = useState(String(currentGoal || 100));
+
+  if (!visible) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>Set Monthly Goal (INR)</Text>
+          <TextInput
+            style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
+            keyboardType="numeric"
+            value={goalVal}
+            onChangeText={setGoalVal}
+          />
+          <View style={styles.modalBtnRow}>
+            <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.cardBorder }]} onPress={onClose}>
+              <Text style={{ color: theme.textSecondary, fontWeight: '600' }}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalBtn, { backgroundColor: theme.accent }]}
+              onPress={() => {
+                const num = parseFloat(goalVal);
+                if (!isNaN(num) && num > 0) {
+                  onSave(num);
+                  onClose();
+                }
+              }}
+            >
+              <Text style={{ color: '#FFF', fontWeight: '700' }}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function AccountModal({ visible, accounts, selectedAccount, onSelect, onClose, theme }) {
+  if (!visible) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>Select Trading Account</Text>
+          {accounts.map((acc) => (
+            <TouchableOpacity
+              key={acc}
+              style={[
+                styles.accOptionBtn,
+                { backgroundColor: selectedAccount === acc ? theme.accent : theme.background }
+              ]}
+              onPress={() => {
+                onSelect(acc);
+                onClose();
+              }}
+            >
+              <Text style={{ color: selectedAccount === acc ? '#FFF' : theme.textPrimary, fontWeight: '700' }}>{acc}</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.cardBorder, marginTop: 10 }]} onPress={onClose}>
+            <Text style={{ color: theme.textSecondary, fontWeight: '600', textAlign: 'center' }}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// --- NAVIGATION & VIEWS ---
 function ViewTabs({ activeTab, onSelectTab, theme }) {
   const tabs = ['Week', 'Month', 'Year', 'All time'];
   return (
@@ -349,16 +483,14 @@ function AllTimeView({ entries, theme }) {
   );
 }
 
-// --- TRADER ANALYTICS DASHBOARD ---
+// --- TRADER DASHBOARD ANALYTICS ---
 function AnalyticsView({ year, entries = {}, selectedAccount = 'Main Account', accounts = ['Main Account', 'Trading'], currentDate = new Date(), theme }) {
-  // 1. MONTHLY P&L DATA
   const monthlyData = MONTH_NAMES.map((monthName, idx) => {
     const rawVal = calculateMonthlyPnL(entries, year, idx, selectedAccount);
     return { month: monthName.slice(0, 3), amount: Math.round(rawVal || 0) };
   });
   const maxMonthlyAbs = Math.max(...monthlyData.map((d) => Math.abs(d.amount)), 1);
 
-  // 2. WEEKLY BREAKDOWN DATA
   const getWeeklyBreakdown = () => {
     const monthIdx = currentDate.getMonth();
     const currYear = currentDate.getFullYear();
@@ -411,7 +543,6 @@ function AnalyticsView({ year, entries = {}, selectedAccount = 'Main Account', a
   const weeklyData = getWeeklyBreakdown();
   const maxWeeklyAbs = Math.max(...weeklyData.map((w) => Math.abs(w.amount)), 1);
 
-  // 3. CUMULATIVE EQUITY DATA
   const getCumulativeData = () => {
     const sortedKeys = Object.keys(entries || {}).sort();
     let runningTotal = 0;
@@ -450,7 +581,6 @@ function AnalyticsView({ year, entries = {}, selectedAccount = 'Main Account', a
   const cumulativeData = getCumulativeData();
   const maxCumulativeAbs = Math.max(...cumulativeData.map((c) => Math.abs(c.total)), 1);
 
-  // 4. ACCOUNT PERFORMANCE DATA
   const accountData = (accounts || ['Main Account', 'Trading']).map((accName) => {
     let accTotal = 0;
     let accProfits = 0;
@@ -471,7 +601,6 @@ function AnalyticsView({ year, entries = {}, selectedAccount = 'Main Account', a
     return { name: accName, net: accTotal, profits: accProfits, losses: accLosses };
   });
 
-  // 5. OVERALL METRICS CALCULATIONS
   let profitDays = 0;
   let lossDays = 0;
   let totalProfitSum = 0;
@@ -504,7 +633,6 @@ function AnalyticsView({ year, entries = {}, selectedAccount = 'Main Account', a
 
   return (
     <ScrollView contentContainerStyle={styles.dashboardContainer}>
-      {/* DASHBOARD HEADER */}
       <View style={styles.dashboardHeader}>
         <Text style={[styles.dashboardTitle, { color: theme.textPrimary }]}>📊 Performance Dashboard</Text>
         <Text style={[styles.dashboardSub, { color: theme.textSecondary }]}>
@@ -512,7 +640,7 @@ function AnalyticsView({ year, entries = {}, selectedAccount = 'Main Account', a
         </Text>
       </View>
 
-      {/* HERO WIDGET: NET P&L BANNER */}
+      {/* HERO NET REALIZED P&L WIDGET */}
       <View style={[styles.heroCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>NET REALIZED P&L</Text>
         <Text style={[styles.heroValue, { color: netTotalPnL >= 0 ? theme.profitText : theme.lossText }]}>
@@ -537,7 +665,7 @@ function AnalyticsView({ year, entries = {}, selectedAccount = 'Main Account', a
         </View>
       </View>
 
-      {/* DASHBOARD WIDGET 1: KPI STAT GRID */}
+      {/* KPI GRID WIDGET */}
       <View style={styles.widgetHeader}>
         <Text style={[styles.widgetTitle, { color: theme.textPrimary }]}>⚡ Key Performance Indicators</Text>
       </View>
@@ -568,7 +696,7 @@ function AnalyticsView({ year, entries = {}, selectedAccount = 'Main Account', a
         </View>
       </View>
 
-      {/* DASHBOARD WIDGET 2: WIN/LOSS GAUGE */}
+      {/* WIN/LOSS GAUGE WIDGET */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <View style={styles.widgetTopRow}>
           <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>🎯 Session Ratio</Text>
@@ -586,7 +714,7 @@ function AnalyticsView({ year, entries = {}, selectedAccount = 'Main Account', a
         </View>
       </View>
 
-      {/* DASHBOARD WIDGET 3: MONTHLY BAR GRAPH */}
+      {/* MONTHLY P&L TREND BAR CHART WIDGET */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>📅 Monthly P&L Trend ({year})</Text>
 
@@ -613,7 +741,7 @@ function AnalyticsView({ year, entries = {}, selectedAccount = 'Main Account', a
         </View>
       </View>
 
-      {/* DASHBOARD WIDGET 4: WEEKLY BREAKDOWN */}
+      {/* WEEKLY BREAKDOWN WIDGET */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>
           📆 Weekly Breakdown ({MONTH_NAMES[currentDate.getMonth()]})
@@ -651,7 +779,7 @@ function AnalyticsView({ year, entries = {}, selectedAccount = 'Main Account', a
         </View>
       </View>
 
-      {/* DASHBOARD WIDGET 5: CUMULATIVE EQUITY CURVE */}
+      {/* CUMULATIVE EQUITY TRAJECTORY WIDGET */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>📈 Cumulative Equity Trajectory</Text>
 
@@ -682,7 +810,7 @@ function AnalyticsView({ year, entries = {}, selectedAccount = 'Main Account', a
         )}
       </View>
 
-      {/* DASHBOARD WIDGET 6: ACCOUNT COMPARISON */}
+      {/* ACCOUNT PERFORMANCE COMPARISON WIDGET */}
       <View style={styles.widgetHeader}>
         <Text style={[styles.widgetTitle, { color: theme.textPrimary }]}>💼 Account Performance Breakdown</Text>
       </View>
@@ -752,7 +880,7 @@ function BottomNavBar({ activeTab, onSelectTab, theme }) {
   );
 }
 
-// --- MAIN APP ---
+// --- MAIN APP ENTRY ---
 function MainApp() {
   const [activeNavTab, setActiveNavTab] = useState('Home');
   const [activeTab, setActiveTab] = useState('Month');
@@ -765,6 +893,8 @@ function MainApp() {
   const [selectedAccount, setSelectedAccount] = useState('Main Account');
 
   const [selectedDateKey, setSelectedDateKey] = useState(null);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
 
   const theme = isDarkMode ? darkTheme : lightTheme;
 
@@ -789,6 +919,14 @@ function MainApp() {
 
   const handleSaveEntry = async (dateKey, amount) => {
     const updated = { ...entries, [dateKey]: { amount, account: selectedAccount } };
+    setEntries(updated);
+    await AsyncStorage.setItem(STORAGE_KEYS.ENTRIES, JSON.stringify(updated));
+    setSelectedDateKey(null);
+  };
+
+  const handleDeleteEntry = async (dateKey) => {
+    const updated = { ...entries };
+    delete updated[dateKey];
     setEntries(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.ENTRIES, JSON.stringify(updated));
     setSelectedDateKey(null);
@@ -877,10 +1015,12 @@ function MainApp() {
               </TouchableOpacity>
             </View>
 
-            <SummaryRow totalPnL={totalPnL} goal={goal} onOpenGoalModal={() => {}} theme={theme} />
+            <SummaryRow totalPnL={totalPnL} goal={goal} onOpenGoalModal={() => setShowGoalModal(true)} theme={theme} />
 
             <View style={styles.filterRow}>
-              <Text style={{ color: theme.accent, fontSize: 13, fontWeight: '600' }}>{selectedAccount}</Text>
+              <TouchableOpacity onPress={() => setShowAccountModal(true)}>
+                <Text style={{ color: theme.accent, fontSize: 13, fontWeight: '600' }}>{selectedAccount} ▾</Text>
+              </TouchableOpacity>
               <View style={{ flexDirection: 'row', gap: 6 }}>
                 <TouchableOpacity onPress={handleImportFromExcel} style={[styles.exportBtn, { backgroundColor: theme.cardBg }]}>
                   <Text style={{ color: theme.accent, fontSize: 12, fontWeight: '700' }}>📥 Import</Text>
@@ -899,10 +1039,56 @@ function MainApp() {
         </>
       )}
 
-      {activeNavTab === 'Analytics' && <AnalyticsView year={year} entries={entries} selectedAccount={selectedAccount} accounts={accounts} currentDate={currentDate} theme={theme} />}
-      {activeNavTab === 'About' && <AboutView isDarkMode={isDarkMode} onToggleTheme={() => setIsDarkMode(!isDarkMode)} theme={theme} />}
+      {activeNavTab === 'Analytics' && (
+        <AnalyticsView
+          year={year}
+          entries={entries}
+          selectedAccount={selectedAccount}
+          accounts={accounts}
+          currentDate={currentDate}
+          theme={theme}
+        />
+      )}
+
+      {activeNavTab === 'About' && (
+        <AboutView
+          isDarkMode={isDarkMode}
+          onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+          theme={theme}
+        />
+      )}
 
       <BottomNavBar activeTab={activeNavTab} onSelectTab={setActiveNavTab} theme={theme} />
+
+      <EntryModal
+        visible={!!selectedDateKey}
+        dateKey={selectedDateKey}
+        initialEntry={selectedDateKey ? entries[selectedDateKey] : null}
+        onSave={handleSaveEntry}
+        onDelete={handleDeleteEntry}
+        onClose={() => setSelectedDateKey(null)}
+        theme={theme}
+      />
+
+      <GoalModal
+        visible={showGoalModal}
+        currentGoal={goal}
+        onSave={async (g) => {
+          setGoal(g);
+          await AsyncStorage.setItem(STORAGE_KEYS.GOAL, JSON.stringify(g));
+        }}
+        onClose={() => setShowGoalModal(false)}
+        theme={theme}
+      />
+
+      <AccountModal
+        visible={showAccountModal}
+        accounts={accounts}
+        selectedAccount={selectedAccount}
+        onSelect={(acc) => setSelectedAccount(acc)}
+        onClose={() => setShowAccountModal(false)}
+        theme={theme}
+      />
     </SafeAreaView>
   );
 }
@@ -1055,7 +1241,50 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
 
-  // --- DASHBOARD STYLES ---
+  // MODAL STYLES
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 14,
+  },
+  input: {
+    height: 48,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    marginBottom: 16,
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  modalBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  accOptionBtn: {
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+
+  // DASHBOARD STYLES
   dashboardContainer: {
     padding: 16,
     paddingBottom: 50,
@@ -1089,7 +1318,7 @@ const styles = StyleSheet.create({
   },
   heroRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justify.content: 'space-between',
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 0.5,
@@ -1147,7 +1376,7 @@ const styles = StyleSheet.create({
   },
   widgetTopRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justify.content: 'space-between',
     alignItems: 'center',
   },
   widgetTitleText: {
@@ -1164,7 +1393,7 @@ const styles = StyleSheet.create({
   },
   gaugeFooterRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justify.content: 'space-between',
     marginTop: 8,
   },
   chartContainer: {
@@ -1206,7 +1435,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 5,
     marginHorizontal: 10,
-    justifyContent: 'center',
+    justify.content: 'center',
   },
   accountCard: {
     borderRadius: 12,
