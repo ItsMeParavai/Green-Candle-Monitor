@@ -136,7 +136,7 @@ function MainApp() {
         const amt = Math.round(parseFloat(item?.amount || 0));
         const type = amt >= 0 ? 'Profit' : 'Loss';
         const accountName = item?.account || 'Main Account';
-        csvContent += `"${dateKey}","${accountName}","${type}",${amt}\n`;
+        csvContent += '"' + dateKey + '","' + accountName + '","' + type + '",' + amt + '\n';
       });
 
       const fileUri = `${FileSystem.documentDirectory}pnl_report.csv`;
