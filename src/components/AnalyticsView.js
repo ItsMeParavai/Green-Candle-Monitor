@@ -11,7 +11,7 @@ export default function AnalyticsView({
   currentDate = new Date(),
   theme,
 }) {
-  const [chartType, setChartType] = useState('All'); // 'All', 'Monthly', 'Weekly', 'Equity', 'Accounts'
+  const [chartType, setChartType] = useState('All');
 
   // 1. MONTHLY P&L DATA
   const monthlyData = MONTH_NAMES.map((monthName, idx) => {
@@ -25,7 +25,7 @@ export default function AnalyticsView({
 
   const maxMonthlyAbs = Math.max(...monthlyData.map((d) => Math.abs(d.amount)), 1);
 
-  // 2. WEEKLY P&L DATA (Current Active Month Weeks)
+  // 2. WEEKLY P&L DATA
   const getWeeklyBreakdown = () => {
     const monthIdx = currentDate.getMonth();
     const currYear = currentDate.getFullYear();
@@ -45,7 +45,7 @@ export default function AnalyticsView({
       let d = new Date(currentWeekStart);
       while (d <= weekEnd) {
         const dayOfWeek = d.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Weekdays only
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
           const y = d.getFullYear();
           const m = d.getMonth();
           const dateNum = d.getDate();
@@ -63,8 +63,8 @@ export default function AnalyticsView({
       }
 
       weeks.push({
-        label: `W${weekNum}`,
-        range: `${currentWeekStart.getDate()} - ${weekEnd.getDate()} ${MONTH_NAMES[monthIdx].slice(0, 3)}`,
+        label: 'W' + weekNum,
+        range: currentWeekStart.getDate() + ' - ' + weekEnd.getDate() + ' ' + MONTH_NAMES[monthIdx].slice(0, 3),
         amount: Math.round(weekTotal),
       });
 
@@ -99,7 +99,7 @@ export default function AnalyticsView({
               runningTotal += amt;
               curve.push({
                 dateKey: key,
-                label: `${d}/${m}`,
+                label: d + '/' + m,
                 total: runningTotal,
               });
             }
@@ -119,7 +119,7 @@ export default function AnalyticsView({
   const cumulativeData = getCumulativeData();
   const maxCumulativeAbs = Math.max(...cumulativeData.map((c) => Math.abs(c.total)), 1);
 
-  // 4. ACCOUNT-WISE COMPARISON
+  // 4. ACCOUNT BREAKDOWN
   const getAccountBreakdown = () => {
     return accounts.map((accName) => {
       let accTotal = 0;
@@ -231,12 +231,12 @@ export default function AnalyticsView({
             </View>
           </View>
 
-          {/* Win/Loss Ratio Gauge */}
+          {/* Win/Loss Distribution */}
           <View style={[styles.card, { backgroundColor: theme.cardBg, borderColor: theme.border, marginTop: 12 }]}>
             <Text style={[styles.cardTitle, { color: theme.textSecondary }]}>Win / Loss Distribution</Text>
             <View style={styles.gaugeBarBackground}>
-              <View style={[styles.gaugeFillGreen, { width: `${winRate}%`, backgroundColor: theme.profitText }]} />
-              <View style={[styles.gaugeFillRed, { width: `${100 - winRate}%`, backgroundColor: theme.lossText }]} />
+              <View style={[styles.gaugeFillGreen, { width: winRate + '%', backgroundColor: theme.profitText }]} />
+              <View style={[styles.gaugeFillRed, { width: (100 - winRate) + '%', backgroundColor: theme.lossText }]} />
             </View>
             <View style={styles.gaugeFooter}>
               <Text style={{ color: theme.profitText, fontSize: 12, fontWeight: '700' }}>🟢 Profits: {winRate}%</Text>
@@ -255,18 +255,21 @@ export default function AnalyticsView({
               {monthlyData.map((item, index) => {
                 const heightPercent = Math.min((Math.abs(item.amount) / maxMonthlyAbs) * 100, 100);
                 const isProfit = item.amount >= 0;
+                let valDisplay = '';
+                if (item.amount > 0) valDisplay = '+' + item.amount;
+                else if (item.amount < 0) valDisplay = '' + item.amount;
 
                 return (
                   <View key={index} style={styles.barColumn}>
                     <Text style={[styles.barValueText, { color: isProfit ? theme.profitText : theme.lossText }]}>
-                      {item.amount !== 0 ? (item.amount > 0 ? `+${item.amount}` : `${item.amount}`) : ''}
+                      {valDisplay}
                     </Text>
                     <View style={styles.barTrack}>
                       <View
                         style={[
                           styles.barFill,
                           {
-                            height: item.amount === 0 ? '4%' : `${Math.max(heightPercent, 8)}%`,
+                            height: item.amount === 0 ? '4%' : Math.max(heightPercent, 8) + '%',
                             backgroundColor: isProfit ? theme.profitText : theme.lossText,
                           },
                         ]}
@@ -304,7 +307,7 @@ export default function AnalyticsView({
                       style={[
                         styles.horizontalFill,
                         {
-                          width: item.amount === 0 ? '2%' : `${Math.max(barWidthPercent, 6)}%`,
+                          width: item.amount === 0 ? '2%' : Math.max(barWidthPercent, 6) + '%',
                           backgroundColor: isProfit ? theme.profitText : theme.lossText,
                         },
                       ]}
@@ -312,7 +315,7 @@ export default function AnalyticsView({
                   </View>
 
                   <Text style={[styles.horizontalValue, { color: isProfit ? theme.profitText : theme.lossText }]}>
-                    {item.amount >= 0 ? `+₹${item.amount}` : `-₹${Math.abs(item.amount)}`}
+                    {item.amount >= 0 ? '+₹' + item.amount : '-₹' + Math.abs(item.amount)}
                   </Text>
                 </View>
               );
@@ -335,18 +338,19 @@ export default function AnalyticsView({
                 {cumulativeData.map((item, index) => {
                   const isProfit = item.total >= 0;
                   const heightPercent = Math.min((Math.abs(item.total) / maxCumulativeAbs) * 100, 100);
+                  const displayTotal = item.total >= 0 ? '+' + item.total : '' + item.total;
 
                   return (
                     <View key={index} style={styles.barColumn}>
                       <Text style={[styles.barValueText, { color: isProfit ? theme.profitText : theme.lossText }]}>
-                        {item.total >= 0 ? `+${item.total}` : `${item.total}`}
+                        {displayTotal}
                       </Text>
                       <View style={styles.barTrack}>
                         <View
                           style={[
                             styles.barFill,
                             {
-                              height: `${Math.max(heightPercent, 10)}%`,
+                              height: Math.max(heightPercent, 10) + '%',
                               backgroundColor: isProfit ? theme.accent : theme.lossText,
                             },
                           ]}
@@ -372,7 +376,7 @@ export default function AnalyticsView({
                 <View style={styles.accHeader}>
                   <Text style={[styles.accName, { color: theme.textPrimary }]}>{acc.name}</Text>
                   <Text style={[styles.accNet, { color: acc.net >= 0 ? theme.profitText : theme.lossText }]}>
-                    {acc.net >= 0 ? `+₹${acc.net}` : `-₹${Math.abs(acc.net)}`}
+                    {acc.net >= 0 ? '+₹' + acc.net : '-₹' + Math.abs(acc.net)}
                   </Text>
                 </View>
 
