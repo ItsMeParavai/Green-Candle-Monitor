@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,6 +11,9 @@ import {
   TextInput,
   Modal,
   Linking,
+  Animated,
+  Easing,
+  UIManager,
   StatusBar as RNStatusBar,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -18,6 +21,10 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 // --- THEMES ---
 const darkTheme = {
@@ -66,6 +73,47 @@ function formatDateKey(year, monthIndex, day) {
   return year + '-' + m + '-' + d;
 }
 
+function formatPnLText(amount) {
+  if (amount === null || amount === undefined || isNaN(amount)) return '—';
+  if (amount > 0) return '+₹' + amount;
+  if (amount < 0) return '-₹' + Math.abs(amount);
+  return '₹0';
+}
+
+function getWeekMonToFri(currentDate) {
+  const tempDate = new Date(currentDate);
+  const dayOfWeek = tempDate.getDay();
+  const distanceToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+
+  const monday = new Date(tempDate);
+  monday.setDate(tempDate.getDate() + distanceToMon);
+
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+
+  return { monday, friday };
+}
+
+function calculateWeeklyPnL(entries, currentDate) {
+  let total = 0;
+  if (!entries || typeof entries !== 'object') return 0;
+
+  const { monday } = getWeekMonToFri(currentDate);
+
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dateKey = formatDateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    const entry = entries[dateKey];
+    if (entry) {
+      const amt = typeof entry === 'object' ? parseFloat(entry.amount || 0) : parseFloat(entry || 0);
+      if (!isNaN(amt)) total += amt;
+    }
+  }
+
+  return Math.round(total);
+}
+
 function calculateMonthlyPnL(entries, year, monthIndex) {
   let total = 0;
   if (!entries || typeof entries !== 'object') return 0;
@@ -94,6 +142,118 @@ function calculateMonthlyPnL(entries, year, monthIndex) {
   return Math.round(total);
 }
 
+// --- ANIMATION WRAPPERS ---
+function FadeInView({ style, children, keyTrigger }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(12)).current;
+
+  useEffect(() => {
+    fadeAnim.setValue(0);
+    slideAnim.setValue(12);
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 280,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [keyTrigger]);
+
+  return (
+    <Animated.View style={[style, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
+
+function ScaleButton({ onPress, style, children, activeOpacity = 0.8 }) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.94,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 4,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <TouchableOpacity
+      activeOpacity={activeOpacity}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={onPress}
+      style={style}
+    >
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        {children}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+function AnimatedProgressBar({ progressPercent, theme }) {
+  const animatedWidth = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(animatedWidth, {
+      toValue: progressPercent,
+      duration: 500,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [progressPercent]);
+
+  const widthStyle = animatedWidth.interpolate({
+    inputRange: [0, 100],
+    outputRange: ['0%', '100%'],
+    extrapolate: 'clamp',
+  });
+
+  return (
+    <View style={[styles.barBg, { backgroundColor: theme.barBg }]}>
+      <Animated.View style={[styles.barFill, { width: widthStyle, backgroundColor: theme.accent }]} />
+    </View>
+  );
+}
+
+function AnimatedGaugeBar({ fillPercent, theme }) {
+  const animatedWidth = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(animatedWidth, {
+      toValue: fillPercent,
+      duration: 600,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [fillPercent]);
+
+  const widthStyle = animatedWidth.interpolate({
+    inputRange: [0, 100],
+    outputRange: ['0%', '100%'],
+    extrapolate: 'clamp',
+  });
+
+  return (
+    <Animated.View style={{ height: '100%', width: widthStyle, backgroundColor: theme.profitText }} />
+  );
+}
+
 // --- ERROR BOUNDARY ---
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
@@ -120,13 +280,23 @@ class ErrorBoundary extends React.Component {
 // --- MODALS ---
 function EntryModal({ visible, dateKey, initialEntry, onSave, onDelete, onClose, theme }) {
   const [amount, setAmount] = useState('');
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (initialEntry) {
-      const val = typeof initialEntry === 'object' ? initialEntry.amount : initialEntry;
-      setAmount(val !== undefined && val !== null ? String(val) : '');
-    } else {
-      setAmount('');
+    if (visible) {
+      if (initialEntry) {
+        const val = typeof initialEntry === 'object' ? initialEntry.amount : initialEntry;
+        setAmount(val !== undefined && val !== null ? String(val) : '');
+      } else {
+        setAmount('');
+      }
+      scaleAnim.setValue(0.85);
+      opacityAnim.setValue(0);
+      Animated.parallel([
+        Animated.spring(scaleAnim, { toValue: 1, friction: 6, tension: 50, useNativeDriver: true }),
+        Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+      ]).start();
     }
   }, [initialEntry, visible]);
 
@@ -142,9 +312,9 @@ function EntryModal({ visible, dateKey, initialEntry, onSave, onDelete, onClose,
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
+    <Modal visible={visible} transparent animationType="none">
+      <Animated.View style={[styles.modalOverlay, { opacity: opacityAnim }]}>
+        <Animated.View style={[styles.modalContent, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder, transform: [{ scale: scaleAnim }] }]}>
           <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>
             Log P&L ({dateKey})
           </Text>
@@ -161,32 +331,45 @@ function EntryModal({ visible, dateKey, initialEntry, onSave, onDelete, onClose,
 
           <View style={styles.modalBtnRow}>
             {initialEntry && (
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.lossBg }]} onPress={() => onDelete(dateKey)}>
+              <ScaleButton style={[styles.modalBtn, { backgroundColor: theme.lossBg }]} onPress={() => onDelete(dateKey)}>
                 <Text style={{ color: theme.lossText, fontWeight: '700' }}>Delete</Text>
-              </TouchableOpacity>
+              </ScaleButton>
             )}
-            <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.cardBorder }]} onPress={onClose}>
+            <ScaleButton style={[styles.modalBtn, { backgroundColor: theme.cardBorder }]} onPress={onClose}>
               <Text style={{ color: theme.textSecondary, fontWeight: '600' }}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.accent }]} onPress={handleSave}>
+            </ScaleButton>
+            <ScaleButton style={[styles.modalBtn, { backgroundColor: theme.accent }]} onPress={handleSave}>
               <Text style={{ color: '#FFF', fontWeight: '700' }}>Save</Text>
-            </TouchableOpacity>
+            </ScaleButton>
           </View>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }
 
 function GoalModal({ visible, currentGoal, onSave, onClose, theme }) {
   const [goalVal, setGoalVal] = useState(String(currentGoal || 100));
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      scaleAnim.setValue(0.85);
+      opacityAnim.setValue(0);
+      Animated.parallel([
+        Animated.spring(scaleAnim, { toValue: 1, friction: 6, tension: 50, useNativeDriver: true }),
+        Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [visible]);
 
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
+    <Modal visible={visible} transparent animationType="none">
+      <Animated.View style={[styles.modalOverlay, { opacity: opacityAnim }]}>
+        <Animated.View style={[styles.modalContent, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder, transform: [{ scale: scaleAnim }] }]}>
           <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>Set Monthly Goal (INR)</Text>
           <TextInput
             style={[styles.input, { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.cardBorder }]}
@@ -195,10 +378,10 @@ function GoalModal({ visible, currentGoal, onSave, onClose, theme }) {
             onChangeText={setGoalVal}
           />
           <View style={styles.modalBtnRow}>
-            <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.cardBorder }]} onPress={onClose}>
+            <ScaleButton style={[styles.modalBtn, { backgroundColor: theme.cardBorder }]} onPress={onClose}>
               <Text style={{ color: theme.textSecondary, fontWeight: '600' }}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </ScaleButton>
+            <ScaleButton
               style={[styles.modalBtn, { backgroundColor: theme.accent }]}
               onPress={() => {
                 const num = parseFloat(goalVal);
@@ -209,10 +392,10 @@ function GoalModal({ visible, currentGoal, onSave, onClose, theme }) {
               }}
             >
               <Text style={{ color: '#FFF', fontWeight: '700' }}>Save</Text>
-            </TouchableOpacity>
+            </ScaleButton>
           </View>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }
@@ -240,7 +423,7 @@ function ViewTabs({ activeTab, onSelectTab, theme }) {
   );
 }
 
-function SummaryRow({ totalPnL, goal, onOpenGoalModal, theme }) {
+function SummaryRow({ totalPnL, goal, activeTab, onOpenGoalModal, theme }) {
   const roundedPnL = Math.round(totalPnL || 0);
   const roundedGoal = Math.round(goal || 0);
   const progressPercent = Math.min(Math.max((totalPnL / (goal || 1)) * 100, 0), 100);
@@ -248,9 +431,11 @@ function SummaryRow({ totalPnL, goal, onOpenGoalModal, theme }) {
   return (
     <View style={styles.summaryContainer}>
       <View style={[styles.summaryCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
-        <Text style={[styles.cardTitle, { color: theme.textSecondary }]}>Total P&L</Text>
-        <Text style={[styles.pnlValue, { color: roundedPnL >= 0 ? theme.profitText : theme.lossText }]}>
-          {roundedPnL >= 0 ? '+₹' + roundedPnL : '-₹' + Math.abs(roundedPnL)}
+        <Text style={[styles.cardTitle, { color: theme.textSecondary }]}>
+          {activeTab === 'Week' ? 'Weekly P&L' : 'Total P&L'}
+        </Text>
+        <Text style={[styles.pnlValue, { color: roundedPnL > 0 ? theme.profitText : roundedPnL < 0 ? theme.lossText : theme.textPrimary }]}>
+          {formatPnLText(roundedPnL)}
         </Text>
       </View>
 
@@ -262,9 +447,7 @@ function SummaryRow({ totalPnL, goal, onOpenGoalModal, theme }) {
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.barBg, { backgroundColor: theme.barBg }]}>
-          <View style={[styles.barFill, { width: progressPercent + '%', backgroundColor: theme.accent }]} />
-        </View>
+        <AnimatedProgressBar progressPercent={progressPercent} theme={theme} />
 
         <View style={styles.goalFooter}>
           <Text style={{ fontSize: 12, fontWeight: '600', color: theme.textPrimary }}>
@@ -327,16 +510,16 @@ function CalendarGrid({ year, monthIndex, entries, onSelectDate, theme }) {
           }
 
           return (
-            <TouchableOpacity
+            <ScaleButton
               key={dateKey}
               style={[styles.gridCard, { backgroundColor: cardBg, borderColor: theme.cardBorder, width: '18%' }]}
               onPress={() => onSelectDate(dateKey)}
             >
               <Text style={{ fontSize: 12, fontWeight: '600', color: theme.textPrimary }}>{day}</Text>
               <Text style={{ fontSize: 12, fontWeight: '700', textAlign: 'center', color: textColor }}>
-                {amount === null ? '—' : amount > 0 ? '+₹' + amount : '-₹' + Math.abs(amount)}
+                {formatPnLText(amount)}
               </Text>
-            </TouchableOpacity>
+            </ScaleButton>
           );
         })}
       </View>
@@ -345,12 +528,7 @@ function CalendarGrid({ year, monthIndex, entries, onSelectDate, theme }) {
 }
 
 function WeekView({ currentDate, entries, onSelectDate, theme }) {
-  const tempDate = new Date(currentDate);
-  const dayOfWeek = tempDate.getDay();
-  const distanceToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-
-  const monday = new Date(tempDate);
-  monday.setDate(tempDate.getDate() + distanceToMon);
+  const { monday } = getWeekMonToFri(currentDate);
 
   const days = [];
   const dayLabels = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
@@ -377,7 +555,7 @@ function WeekView({ currentDate, entries, onSelectDate, theme }) {
         }
 
         return (
-          <TouchableOpacity
+          <ScaleButton
             key={item.dateKey}
             style={[styles.weekRowCard, { backgroundColor: cardBg, borderColor: theme.cardBorder }]}
             onPress={() => onSelectDate(item.dateKey)}
@@ -387,9 +565,9 @@ function WeekView({ currentDate, entries, onSelectDate, theme }) {
               <Text style={{ fontSize: 16, fontWeight: '700', color: theme.textPrimary }}>{item.dateNum}</Text>
             </View>
             <Text style={{ fontSize: 16, fontWeight: '700', color: textColor }}>
-              {item.amount === null ? '—' : item.amount > 0 ? '+₹' + item.amount : '-₹' + Math.abs(item.amount)}
+              {formatPnLText(item.amount)}
             </Text>
-          </TouchableOpacity>
+          </ScaleButton>
         );
       })}
     </View>
@@ -404,8 +582,8 @@ function YearView({ year, entries, theme }) {
         return (
           <View key={name} style={[styles.yearMonthCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
             <Text style={{ fontSize: 13, fontWeight: '600', color: theme.textSecondary, marginBottom: 6 }}>{name}</Text>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: pnl >= 0 ? theme.profitText : theme.lossText }}>
-              {pnl >= 0 ? '+₹' + pnl : '-₹' + Math.abs(pnl)}
+            <Text style={{ fontSize: 16, fontWeight: '700', color: pnl > 0 ? theme.profitText : pnl < 0 ? theme.lossText : theme.textPrimary }}>
+              {formatPnLText(pnl)}
             </Text>
           </View>
         );
@@ -434,8 +612,8 @@ function AllTimeView({ entries, theme }) {
     <View style={{ paddingHorizontal: 16, gap: 12 }}>
       <View style={[styles.allTimeCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: theme.textSecondary, marginBottom: 6 }}>Lifetime Net P&L</Text>
-        <Text style={{ fontSize: 26, fontWeight: '700', color: netPnL >= 0 ? theme.profitText : theme.lossText }}>
-          {netPnL >= 0 ? '+₹' + netPnL : '-₹' + Math.abs(netPnL)}
+        <Text style={{ fontSize: 26, fontWeight: '700', color: netPnL > 0 ? theme.profitText : netPnL < 0 ? theme.lossText : theme.textPrimary }}>
+          {formatPnLText(netPnL)}
         </Text>
       </View>
 
@@ -583,11 +761,10 @@ function AnalyticsView({ year, entries, currentDate, theme }) {
         <Text style={[styles.dashboardTitle, { color: theme.textPrimary }]}>📊 Performance Dashboard</Text>
       </View>
 
-      {/* HERO NET REALIZED P&L */}
       <View style={[styles.heroCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>NET REALIZED P&L</Text>
-        <Text style={[styles.heroValue, { color: netTotalPnL >= 0 ? theme.profitText : theme.lossText }]}>
-          {netTotalPnL >= 0 ? '+₹' + netTotalPnL : '-₹' + Math.abs(netTotalPnL)}
+        <Text style={[styles.heroValue, { color: netTotalPnL > 0 ? theme.profitText : netTotalPnL < 0 ? theme.lossText : theme.textPrimary }]}>
+          {formatPnLText(netTotalPnL)}
         </Text>
 
         <View style={styles.heroRow}>
@@ -608,7 +785,6 @@ function AnalyticsView({ year, entries, currentDate, theme }) {
         </View>
       </View>
 
-      {/* KPI GRID */}
       <View style={styles.widgetHeader}>
         <Text style={[styles.widgetTitle, { color: theme.textPrimary }]}>⚡ Key Performance Indicators</Text>
       </View>
@@ -639,7 +815,6 @@ function AnalyticsView({ year, entries, currentDate, theme }) {
         </View>
       </View>
 
-      {/* WIN/LOSS GAUGE */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <View style={styles.widgetTopRow}>
           <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>🎯 Session Ratio</Text>
@@ -647,7 +822,7 @@ function AnalyticsView({ year, entries, currentDate, theme }) {
         </View>
 
         <View style={styles.gaugeTrack}>
-          <View style={{ height: '100%', width: winRate + '%', backgroundColor: theme.profitText }} />
+          <AnimatedGaugeBar fillPercent={winRate} theme={theme} />
           <View style={{ height: '100%', width: (100 - winRate) + '%', backgroundColor: theme.lossText }} />
         </View>
 
@@ -657,7 +832,6 @@ function AnalyticsView({ year, entries, currentDate, theme }) {
         </View>
       </View>
 
-      {/* MONTHLY P&L BAR CHART */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>📅 Monthly P&L Trend ({year})</Text>
 
@@ -665,9 +839,7 @@ function AnalyticsView({ year, entries, currentDate, theme }) {
           {monthlyData.map((item, index) => {
             const heightPercent = Math.min((Math.abs(item.amount) / maxMonthlyAbs) * 100, 100);
             const isProfit = item.amount >= 0;
-            let valDisplay = '';
-            if (item.amount > 0) valDisplay = '+' + item.amount;
-            else if (item.amount < 0) valDisplay = '' + item.amount;
+            let valDisplay = formatPnLText(item.amount);
 
             return (
               <View key={index} style={styles.chartColumn}>
@@ -684,7 +856,6 @@ function AnalyticsView({ year, entries, currentDate, theme }) {
         </View>
       </View>
 
-      {/* WEEKLY BREAKDOWN */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>
           📆 Weekly Breakdown ({MONTH_NAMES[currentDate ? currentDate.getMonth() : 0]})
@@ -714,7 +885,7 @@ function AnalyticsView({ year, entries, currentDate, theme }) {
                 </View>
 
                 <Text style={{ fontSize: 12, fontWeight: '700', width: 65, textAlign: 'right', color: isProfit ? theme.profitText : theme.lossText }}>
-                  {item.amount >= 0 ? '+₹' + item.amount : '-₹' + Math.abs(item.amount)}
+                  {formatPnLText(item.amount)}
                 </Text>
               </View>
             );
@@ -722,7 +893,6 @@ function AnalyticsView({ year, entries, currentDate, theme }) {
         </View>
       </View>
 
-      {/* CUMULATIVE EQUITY CURVE */}
       <View style={[styles.dashboardWidget, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
         <Text style={[styles.widgetTitleText, { color: theme.textPrimary }]}>📈 Cumulative Equity Trajectory</Text>
 
@@ -735,12 +905,11 @@ function AnalyticsView({ year, entries, currentDate, theme }) {
             {cumulativeData.map((item, index) => {
               const isProfit = item.total >= 0;
               const heightPercent = Math.min((Math.abs(item.total) / maxCumulativeAbs) * 100, 100);
-              const displayTotal = item.total >= 0 ? '+' + item.total : '' + item.total;
 
               return (
                 <View key={index} style={styles.chartColumn}>
                   <Text style={[styles.chartValText, { color: isProfit ? theme.profitText : theme.lossText }]}>
-                    {displayTotal}
+                    {formatPnLText(item.total)}
                   </Text>
                   <View style={styles.chartTrack}>
                     <View style={{ width: '100%', borderRadius: 4, height: Math.max(heightPercent, 10) + '%', backgroundColor: isProfit ? theme.accent : theme.lossText }} />
@@ -788,11 +957,11 @@ function AboutView({ theme }) {
         </View>
         <View style={styles.infoRow}>
           <Text style={{ color: theme.textSecondary }}>Repository</Text>
-          <TouchableOpacity onPress={openGithub}>
+          <ScaleButton onPress={openGithub}>
             <Text style={{ fontWeight: '600', color: theme.accent, textDecorationLine: 'underline' }}>
               GitHub Repo ↗
             </Text>
-          </TouchableOpacity>
+          </ScaleButton>
         </View>
         <View style={styles.infoRow}>
           <Text style={{ color: theme.textSecondary }}>Engine</Text>
@@ -868,6 +1037,46 @@ function MainApp() {
 
   const year = currentDate.getFullYear();
   const monthIndex = currentDate.getMonth();
+
+  const handlePrevDate = () => {
+    const d = new Date(currentDate);
+    if (activeTab === 'Week') {
+      d.setDate(d.getDate() - 7);
+    } else if (activeTab === 'Month') {
+      d.setMonth(d.getMonth() - 1);
+    } else if (activeTab === 'Year') {
+      d.setFullYear(d.getFullYear() - 1);
+    }
+    setCurrentDate(d);
+  };
+
+  const handleNextDate = () => {
+    const d = new Date(currentDate);
+    if (activeTab === 'Week') {
+      d.setDate(d.getDate() + 7);
+    } else if (activeTab === 'Month') {
+      d.setMonth(d.getMonth() + 1);
+    } else if (activeTab === 'Year') {
+      d.setFullYear(d.getFullYear() + 1);
+    }
+    setCurrentDate(d);
+  };
+
+  const getHeaderTitle = () => {
+    if (activeTab === 'Week') {
+      const { monday, friday } = getWeekMonToFri(currentDate);
+      const monStr = monday.getDate() + ' ' + MONTH_NAMES[monday.getMonth()].slice(0, 3);
+      const friStr = friday.getDate() + ' ' + MONTH_NAMES[friday.getMonth()].slice(0, 3) + ' ' + friday.getFullYear();
+      return monStr + ' - ' + friStr;
+    }
+    if (activeTab === 'Year') {
+      return String(year);
+    }
+    if (activeTab === 'All time') {
+      return 'Lifetime Overview';
+    }
+    return MONTH_NAMES[monthIndex] + ' ' + year;
+  };
 
   const handleSaveEntry = async (dateKey, amount) => {
     const updated = { ...entries, [dateKey]: { amount } };
@@ -946,62 +1155,72 @@ function MainApp() {
     }
   };
 
-  const totalPnL = calculateMonthlyPnL(entries, year, monthIndex);
+  const totalPnL = activeTab === 'Week'
+    ? calculateWeeklyPnL(entries, currentDate)
+    : calculateMonthlyPnL(entries, year, monthIndex);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
       {activeNavTab === 'Home' && (
-        <>
+        <FadeInView style={{ flex: 1 }} keyTrigger={activeNavTab}>
           <ViewTabs activeTab={activeTab} onSelectTab={setActiveTab} theme={theme} />
 
           <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
-            <View style={styles.navHeader}>
-              <TouchableOpacity onPress={() => setCurrentDate(new Date(year, monthIndex - 1, 1))}>
-                <Text style={[styles.arrow, { color: theme.textPrimary }]}>‹</Text>
-              </TouchableOpacity>
-              <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
-                {MONTH_NAMES[monthIndex]} {year}
-              </Text>
-              <TouchableOpacity onPress={() => setCurrentDate(new Date(year, monthIndex + 1, 1))}>
-                <Text style={[styles.arrow, { color: theme.textPrimary }]}>›</Text>
-              </TouchableOpacity>
-            </View>
+            {activeTab !== 'All time' && (
+              <View style={styles.navHeader}>
+                <ScaleButton onPress={handlePrevDate}>
+                  <Text style={[styles.arrow, { color: theme.textPrimary }]}>‹</Text>
+                </ScaleButton>
+                <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
+                  {getHeaderTitle()}
+                </Text>
+                <ScaleButton onPress={handleNextDate}>
+                  <Text style={[styles.arrow, { color: theme.textPrimary }]}>›</Text>
+                </ScaleButton>
+              </View>
+            )}
 
-            <SummaryRow totalPnL={totalPnL} goal={goal} onOpenGoalModal={() => setShowGoalModal(true)} theme={theme} />
+            <SummaryRow totalPnL={totalPnL} goal={goal} activeTab={activeTab} onOpenGoalModal={() => setShowGoalModal(true)} theme={theme} />
 
             <View style={styles.filterRow}>
               <View style={{ flex: 1 }} />
               <View style={{ flexDirection: 'row', gap: 6 }}>
-                <TouchableOpacity onPress={handleImportFromExcel} style={[styles.exportBtn, { backgroundColor: theme.cardBg }]}>
+                <ScaleButton onPress={handleImportFromExcel} style={[styles.exportBtn, { backgroundColor: theme.cardBg }]}>
                   <Text style={{ color: theme.accent, fontSize: 12, fontWeight: '700' }}>📥 Import</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleExportToExcel} style={[styles.exportBtn, { backgroundColor: theme.cardBg }]}>
+                </ScaleButton>
+                <ScaleButton onPress={handleExportToExcel} style={[styles.exportBtn, { backgroundColor: theme.cardBg }]}>
                   <Text style={{ color: theme.accent, fontSize: 12, fontWeight: '700' }}>📊 Excel</Text>
-                </TouchableOpacity>
+                </ScaleButton>
               </View>
             </View>
 
-            {activeTab === 'Week' && <WeekView currentDate={currentDate} entries={entries} onSelectDate={(k) => setSelectedDateKey(k)} theme={theme} />}
-            {activeTab === 'Month' && <CalendarGrid year={year} monthIndex={monthIndex} entries={entries} onSelectDate={(k) => setSelectedDateKey(k)} theme={theme} />}
-            {activeTab === 'Year' && <YearView year={year} entries={entries} theme={theme} />}
-            {activeTab === 'All time' && <AllTimeView entries={entries} theme={theme} />}
+            <FadeInView keyTrigger={activeTab + '_' + currentDate.getTime()}>
+              {activeTab === 'Week' && <WeekView currentDate={currentDate} entries={entries} onSelectDate={(k) => setSelectedDateKey(k)} theme={theme} />}
+              {activeTab === 'Month' && <CalendarGrid year={year} monthIndex={monthIndex} entries={entries} onSelectDate={(k) => setSelectedDateKey(k)} theme={theme} />}
+              {activeTab === 'Year' && <YearView year={year} entries={entries} theme={theme} />}
+              {activeTab === 'All time' && <AllTimeView entries={entries} theme={theme} />}
+            </FadeInView>
           </ScrollView>
-        </>
+        </FadeInView>
       )}
 
       {activeNavTab === 'Analytics' && (
-        <AnalyticsView
-          year={year}
-          entries={entries}
-          currentDate={currentDate}
-          theme={theme}
-        />
+        <FadeInView style={{ flex: 1 }} keyTrigger={activeNavTab}>
+          <AnalyticsView
+            year={year}
+            entries={entries}
+            currentDate={currentDate}
+            theme={theme}
+          />
+        </FadeInView>
       )}
 
       {activeNavTab === 'About' && (
-        <AboutView theme={theme} />
+        <FadeInView style={{ flex: 1 }} keyTrigger={activeNavTab}>
+          <AboutView theme={theme} />
+        </FadeInView>
       )}
 
       <BottomNavBar activeTab={activeNavTab} onSelectTab={setActiveNavTab} theme={theme} />
