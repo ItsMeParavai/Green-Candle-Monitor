@@ -145,20 +145,20 @@ function calculateMonthlyPnL(entries, year, monthIndex) {
 // --- ANIMATION WRAPPERS ---
 function FadeInView({ style, children, keyTrigger }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(12)).current;
+  const slideAnim = useRef(new Animated.Value(10)).current;
 
   useEffect(() => {
     fadeAnim.setValue(0);
-    slideAnim.setValue(12);
+    slideAnim.setValue(10);
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 280,
+        duration: 250,
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
-        duration: 280,
+        duration: 250,
         easing: Easing.out(Easing.quad),
         useNativeDriver: true,
       }),
@@ -251,6 +251,74 @@ function AnimatedGaugeBar({ fillPercent, theme }) {
 
   return (
     <Animated.View style={{ height: '100%', width: widthStyle, backgroundColor: theme.profitText }} />
+  );
+}
+
+// --- SLIDING SEGMENTED TAB SWITCHER ---
+function ViewTabs({ activeTab, onSelectTab, theme }) {
+  const tabs = ['Week', 'Month', 'Year', 'All time'];
+  const activeIndex = tabs.indexOf(activeTab);
+  const slideAnim = useRef(new Animated.Value(activeIndex >= 0 ? activeIndex : 1)).current;
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    if (activeIndex >= 0) {
+      Animated.spring(slideAnim, {
+        toValue: activeIndex,
+        friction: 7,
+        tension: 65,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [activeIndex]);
+
+  const padding = 4;
+  const tabWidth = containerWidth > 0 ? (containerWidth - padding * 2) / tabs.length : 0;
+
+  const translateX = slideAnim.interpolate({
+    inputRange: [0, 1, 2, 3],
+    outputRange: [0, tabWidth, tabWidth * 2, tabWidth * 3],
+  });
+
+  return (
+    <View
+      style={[styles.tabContainer, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}
+      onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+    >
+      {containerWidth > 0 && (
+        <Animated.View
+          style={[
+            styles.slidingIndicator,
+            {
+              width: tabWidth,
+              backgroundColor: theme.accent,
+              transform: [{ translateX }],
+            },
+          ]}
+        />
+      )}
+      {tabs.map((tab) => {
+        const isActive = activeTab === tab;
+        return (
+          <TouchableOpacity
+            key={tab}
+            activeOpacity={0.7}
+            style={styles.tabBtn}
+            onPress={() => onSelectTab(tab)}
+          >
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: '600',
+                color: isActive ? '#FFF' : theme.textSecondary,
+              }}
+            >
+              {tab}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
   );
 }
 
@@ -401,28 +469,6 @@ function GoalModal({ visible, currentGoal, onSave, onClose, theme }) {
 }
 
 // --- SUB VIEWS ---
-function ViewTabs({ activeTab, onSelectTab, theme }) {
-  const tabs = ['Week', 'Month', 'Year', 'All time'];
-  return (
-    <View style={[styles.tabContainer, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
-      {tabs.map((tab) => {
-        const isActive = activeTab === tab;
-        return (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tabBtn, isActive && { backgroundColor: theme.accent }]}
-            onPress={() => onSelectTab(tab)}
-          >
-            <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#FFF' : theme.textSecondary }}>
-              {tab}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
-
 function SummaryRow({ totalPnL, goal, activeTab, onOpenGoalModal, theme }) {
   const roundedPnL = Math.round(totalPnL || 0);
   const roundedGoal = Math.round(goal || 0);
@@ -1165,6 +1211,7 @@ function MainApp() {
 
       {activeNavTab === 'Home' && (
         <FadeInView style={{ flex: 1 }} keyTrigger={activeNavTab}>
+          {/* VIEW SWITCHER SLIDER (EXCLUSIVE TO HOME SECTION) */}
           <ViewTabs activeTab={activeTab} onSelectTab={setActiveTab} theme={theme} />
 
           <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
@@ -1269,13 +1316,21 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 12,
     borderWidth: 1,
-    justifyContent: 'space-between',
+    position: 'relative',
+    height: 44,
+  },
+  slidingIndicator: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    bottom: 4,
+    borderRadius: 8,
   },
   tabBtn: {
     flex: 1,
-    paddingVertical: 8,
+    justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
+    zIndex: 1,
   },
   summaryContainer: {
     flexDirection: 'row',
@@ -1586,6 +1641,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 5,
     marginHorizontal: 10,
-    justifyContent: 'center',
+    justify.content || 'center',
   },
 });
